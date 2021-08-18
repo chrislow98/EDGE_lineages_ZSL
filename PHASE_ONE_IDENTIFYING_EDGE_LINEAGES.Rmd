@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
 # PHASE ONE: IDENTIFYING MONOTYPIC AND THREATENED LINEAGES
 
 ```{r setup, echo=FASLE}
@@ -288,7 +289,7 @@ EDGE_reptile_summary <- EDGE_reptile_summary[order(EDGE_reptile_summary$assessed
 
 ```
 
-# PHASE 2 CALCULATING EXPECTED PD
+# PHASE ONE: CALCULATING EXPECTED PD for mammalian families
 
 ```{r extracrt expected PD values, echo=TRUE}
 
@@ -391,9 +392,12 @@ save(data_out, file = "100_family_EDGE_scores.RData")
 
 # this is how you do it for median - do it for lower IQR, upper IQR, lower and upper range too!
 i <- 1
+
 for(i in 1:NROW(ex_PD_full)){
- ex_PD_full$Median.exPD[i] <- median(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]),c(2:NCOL(data_out))])),na.rm = T)
   
+ ex_PD_full$Median.exPD[i] <- median(as.vector(as.numeric(data_out[which(data_out$Family ==
+                                                                   ex_PD_full$Family[i]),c(2:NCOL(data_out))])),na.rm = T)
+
  # Find out lower quantile
  ex_PD_full$Lwr.Quantile[i] <- quantile(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out))])), c(0.25), na.rm = T)
 
