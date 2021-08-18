@@ -1,7 +1,7 @@
 ---
 title: "PHASE_ONE_IDENTIFYING_EDGE_LINEAGES"
 author: "Chris Low"
-date: "17/07/2021"
+date: "22/07/2021"
 output: html_document
 ---
 
@@ -43,7 +43,7 @@ library(performance)
 
 # Start a new project and save all existing package dependencies
 
-renv::init(project = "C:/Users/Student/Documents/UCL/MRes Biodiversity, Evolution and Conservation/Project 2/Github/EDGE_lineages", bare = TRUE)
+renv::init(project = "C:/Users/Student/Documents/UCL/MRes Biodiversity, Evolution and Conservation/Project 2/EDGE_lineages/Github", bare = TRUE)
 
 # save library state to lockfile
 renv::snapshot()
