@@ -15,16 +15,95 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
+# PHASE TWO: MONITORING THE POPULATION STATUS OF EVOLUTIONARY DISTINCT LIENAGES
+
+```{r load packages, echo=FALSE}
+
+library(dplyr)
+library(rredlist)
+library(stringr)
+
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+Load in data to monitor population for Mammal lineages
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r load data, echo=FALSE}
+
+mammals_old_RLI <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Mammal_RLI.csv")
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Function to calculate the Red List Index (RLI)
+
+```{r Red List function, echo=FALSE}
+
+## RLI script
+
+# Label Red List categories
+wtEX<-5
+wtPE<-5
+wtEW<-5
+wtPEW<-5
+wtCR<-4
+wtEN<-3
+wtVU<-2
+wtNT<-1
+wtLC<-0
+
+# Function to calculate the RLI from a set of species categories
+
+get_rli <- function(species_categories) {
+  # Get the number of species in each category, including the old categories
+  nEX<-sum(species_categories=="EX" | species_categories=="E", na.rm = T)
+  nPE<-sum(species_categories=="PE", na.rm = T)
+  nEW<-sum(species_categories=="EW", na.rm = T)
+  nPEW<-sum(species_categories=="PEW", na.rm = T)
+  nCR<-sum(species_categories=="CR", na.rm = T)
+  nEN<-sum(species_categories=="EN", na.rm = T)
+  nVU<-sum(species_categories=="VU" | species_categories=="T", na.rm = T)
+  nNT<-sum(species_categories=="NT"  | species_categories=="LR/nt", na.rm = T)
+  nLC<-sum(species_categories=="LC" | species_categories=="LR/lc" | species_categories=="LR/cd", na.rm = T)
+  
+  # Multiply these by the respective weights and sum
+  Total<-(wtEX*nEX)+(wtPE*nPE)+(wtEW*nEW)+(wtPEW*nPEW)+(wtCR*nCR)+(wtEN*nEN)+(wtVU*nVU)+(wtNT*nNT)+(wtLC*nLC)
+  
+  # Work out the âworse case scenarioâ
+  M<-((nEX+nPE+nEW+nPEW+nCR+nEN+nVU+nNT+nLC)*wtEX)
+  
+  # Calculate RLI 
+  (RLI<-((M-Total)/M))
+  
+  return(RLI)
+}
+
+```
+
+```{r manipulating dataset, echo=FALSE}
+
+# Convert the first letter of every word of a string to Uppercase and the rest of the letters are converted to lower case
+mammals_old_RLI$Family <- str_to_title(mammals_old_RLI$Family)
+
+# Input "_" between species names
+mammals_old_RLI$Name <- gsub(' ', '_', mammals_old_RLI$Name)
+
+# Get RLI for mammals
+
+RLI_summary <- mammals_old_RLI %>% 
+  dplyr::select(Family, X1996.RL.cat, X2008.RL.cat) %>% 
+  dplyr::group_by(Family) %>% 
+  dplyr::summarise(RLI_1996 = get_rli(mammals_old_RLI$X1996.RL.cat),
+            RLI_2008 = get_rli(mammals_old_RLI$X2008.RL.cat))
+
+
+# get_rli works when I subset each family but not when I use the dplyr function
+test1 <- mammals_old_RLI[mammals_old_RLI[["Family"]]=="Atelidae",]
+
+test2 <- mammals_old_RLI[mammals_old_RLI[["Family"]] == "Rhinocerotidae",]
+
+get_rli(test1$X1996.RL.cat)
+
+get_rli(test2$X2008.RL.cat)
+
+
+```
