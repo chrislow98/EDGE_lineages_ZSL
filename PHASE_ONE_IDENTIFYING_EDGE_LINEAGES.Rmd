@@ -395,9 +395,8 @@ i <- 1
 
 for(i in 1:NROW(ex_PD_full)){
   
- ex_PD_full$Median.exPD[i] <- median(as.vector(as.numeric(data_out[which(data_out$Family ==
-                                                                   ex_PD_full$Family[i]),c(2:NCOL(data_out))])),na.rm = T)
-
+ ex_PD_full$Median.exPD[i] <- median(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]),c(2:NCOL(data_out))])),na.rm = T)
+                                                              
  # Find out lower quantile
  ex_PD_full$Lwr.Quantile[i] <- quantile(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out))])), c(0.25), na.rm = T)
 
@@ -409,6 +408,7 @@ for(i in 1:NROW(ex_PD_full)){
  
  # Find out upper range
  ex_PD_full$Uppr.Range[i] <- max(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out))])), na.rm = T)
+ 
  
 }
 
