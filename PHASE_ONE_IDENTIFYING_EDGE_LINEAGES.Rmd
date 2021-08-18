@@ -17,17 +17,562 @@ knitr::opts_chunk$set(echo = TRUE)
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# PHASE ONE: IDENTIFYING MONOTYPIC AND THREATENED LINEAGES
 
-```{r cars}
-summary(cars)
+```{r setup, echo=FASLE}
+
+library(renv)
+library(dplyr)
+library(tidyverse)
+library(stringr)
+library(ggplot2)
+library(ape)
+library(caper)
+library(phylotools)
+library(phangorn)
+library(geiger)
+library(phylobase)
+library(performance)
+
 ```
 
-## Including Plots
+## Create a respoitory where all your package resources are saved
 
-You can also embed plots, for example:
+```{r renv package, echo}
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Start a new project and save all existing package dependencies
+
+renv::init(project = "C:/Users/Student/Documents/UCL/MRes Biodiversity, Evolution and Conservation/Project 2/Github/EDGE_lineages", bare = TRUE)
+
+# save library state to lockfile
+renv::snapshot()
+
+# install digest 0.6.19
+#renv::install("digest@0.6.19")
+
+# remove digest from library
+#renv::remove("digest")
+
+# check library status
+#renv::status()
+
+# restore lockfile, thereby reinstalling digest 0.6.19
+#renv::restore()
+
+# restore automatic snapshots
+#options(renv.config.auto.snapshot = auto.snapshot)
+
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Step One- load data
+
+```{r Load Data, echo=TRUE}
+
+# Load in csv data
+
+EDGE_mammals <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_mammals.csv", stringsAsFactors = FALSE)
+
+EDGE_birds <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_birds.csv", stringsAsFactors = FALSE)
+
+EDGE_amphibians <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_amphibians.csv", stringsAsFactors = FALSE)
+
+EDGE_reptiles <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_reptiles.csv", stringsAsFactors = FALSE)
+
+# Use base::load() because of the renv package installed
+base::load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/mammal_phylogenies_new_distribution.RData")
+
+
+options(digits=3)
+
+```
+
+
+## MAMMALS
+```{r manipulate mammal data, echo=TRUE}
+
+# look at structure of dataset
+str(EDGE_mammals)
+
+# Identify unique species the only occur once throughout the WHOLE dataset
+sp_unique_mammals <- unique(EDGE_mammals$Family, fromLast = TRUE)
+
+# Find out RL categories
+unique(EDGE_mammals$RL.cat)
+
+# Replace certain character string with another string 
+EDGE_mammals$Species <- gsub(' ', '_', EDGE_mammals$Species)
+
+# translate RL categories into binary objects
+
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "DD"] <- 2
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "LC"] <- 0
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "NT"] <- 0
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "EW"] <- 0
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "VU"] <- 1
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "EN"] <- 1
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "CR"] <- 1
+
+# Turn NA values to 0 DON'T NEED TO USE
+#EDGE_mammals$RL_binary[is.na(EDGE_mammals$RL_binary)] <- 0
+
+# order dataframe by family 
+
+EDGE_mammals <- EDGE_mammals[order(EDGE_mammals$Family),]
+
+# Pipe to create new summary dataframe for mammals
+
+EDGE_mammal_summary <- EDGE_mammals %>% 
+  dplyr::select(Family, RL.cat, RL_binary) %>%
+  group_by(Family) %>% #group summary figures by family
+  summarise(richness = length(Family), # calculate richness for families
+            no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
+            no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
+            data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
+            
+            unassessed_prop = no_unassessed/richness*100, # calculate the proportion of unassessed and threatened species
+            assessed_threat_prop = no_threated/data_sufficient_sp*100) #calculate proportion data sufficient and threated species 
+
+# order species based on richness values from lowest to highest
+EDGE_mammal_summary <- EDGE_mammal_summary[order(EDGE_mammal_summary$assessed_threat_prop, decreasing = TRUE),]
+
+# alternative way t0 rowsum columns
+#df$unassessed_threatened <- rowSums(df[, c(4, 5)])
+
+```
+
+##BIRDS
+```{r manipulate bird data, echo=TRUE}
+
+# look at strucutre of dataset
+str(EDGE_birds)
+
+# Identify unique species the only occur once throughout the WHOLE dataset
+sp_unique_birds <- unique(EDGE_birds$Family, fromLast = TRUE)
+
+# Replace certain character string with another string 
+EDGE_birds$Species <- gsub(' ', '_', EDGE_birds$Species)
+
+# translate RL categories into binary objects
+
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "DD"] <- 2
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "LC"] <- 0
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "NT"] <- 0
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "EW"] <- 0
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "VU"] <- 1
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "EN"] <- 1
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "CR"] <- 1
+
+# Turn NA values to 0 DON'T NEED TO USE
+#EDGE_birds$RL_binary[is.na(EDGE_birds$RL_binary)] <- 0
+
+# order dataframe by family 
+
+EDGE_birds <- EDGE_birds[order(EDGE_birds$Family),]
+
+# Pipe to create new summary dataframe for birds
+
+EDGE_bird_summary <- EDGE_birds %>% 
+  dplyr::select(Family, RL.cat, RL_binary) %>% 
+  group_by(Family) %>% #group summary figures by family
+  summarise(richness = length(Family), # calculate richness for families
+            no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
+            no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
+            data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
+            
+           unassessed_prop = no_unassessed/richness*100, # calculate the proportion of unassessed and threatened species
+            assessed_threat_prop = no_threated/data_sufficient_sp*100) #calculate proportion data sufficient and threated species 
+
+# order species based on richness values from lowest to highest
+EDGE_bird_summary <- EDGE_bird_summary[order(EDGE_bird_summary$assessed_threat_prop, decreasing = TRUE),]
+
+```
+
+## AMPHIBIANS
+```{r manipulate amphibians, echo=TRUE}
+
+# look at strucutre of dataset
+str(EDGE_amphibians)
+
+# Identify unique species the only occur once throughout the WHOLE dataset
+sp_unique_amphibians <- unique(EDGE_amphibians$Family, fromLast = TRUE)
+
+# Replace certain character string with another string 
+EDGE_amphibians$Species <- gsub(' ', '_', EDGE_amphibians$Species)
+
+# translate RL categories into binary objects
+
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "DD"] <- 2
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "LC"] <- 0
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "NT"] <- 0
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "EW"] <- 0
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "VU"] <- 1
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "EN"] <- 1
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "CR"] <- 1
+
+# Turn NA values to 0 DON'T NEED TO USE
+#EDGE_amphibians$RL_binary[is.na(EDGE_amphibians$RL_binary)] <- 0
+
+# order dataframe by family 
+
+EDGE_amphibians <- EDGE_amphibians[order(EDGE_amphibians$Family),]
+
+# Pipe to create new summary dataframe for birds
+
+EDGE_amphibian_summary <- EDGE_amphibians %>% 
+  dplyr::select(Family, RL.cat, RL_binary) %>% 
+  group_by(Family) %>% #group summary figures by family
+  summarise(richness = length(Family), # calculate richness for families
+            no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
+            no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
+            data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
+          
+           unassessed_prop = no_unassessed/richness*100, # calculate the proportion of unassessed and threatened species
+            assessed_threat_prop = no_threated/data_sufficient_sp*100) #calculate proportion data sufficient and threated species 
+
+# order species based on richness values from lowest to highest
+EDGE_amphibian_summary <- EDGE_amphibian_summary[order(EDGE_amphibian_summary$assessed_threat_prop, decreasing = TRUE),]
+
+```
+
+
+## REPTILES
+```{r manipulate reptile data, echo=TRUE}
+
+# look at strucutre of dataset
+str(EDGE_reptiles)
+
+# Identify unique species the only occur once throughout the WHOLE dataset
+sp_unique_reptiles <- unique(EDGE_reptiles$Family, fromLast = TRUE)
+
+# Replace certain character string with another string 
+EDGE_reptiles$Species <- gsub(' ', '_', EDGE_reptiles$Species)
+
+# translate RL categories into binary objects
+
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "DD"] <- 2
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "LC"] <- 0
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "NT"] <- 0
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "EW"] <- 0
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "VU"] <- 1
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "EN"] <- 1
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "CR"] <- 1
+
+# Turn NA values to 0 DON'T NEED TO USE
+#EDGE_reptiles$RL_binary[is.na(EDGE_reptiles$RL_binary)] <- 0
+
+# order dataframe by family 
+
+EDGE_reptiles <- EDGE_reptiles[order(EDGE_reptiles$Family),]
+
+# Pipe to create new summary dataframe for birds
+
+EDGE_reptile_summary <- EDGE_reptiles %>% 
+  dplyr::select(Family, RL.cat, RL_binary) %>% 
+  group_by(Family) %>% #group summary figures by family
+  summarise(richness = length(Family), # calculate richness for families
+            no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
+            no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
+            data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
+
+           unassessed_prop = no_unassessed/richness*100, # calculate the proportion of unassessed and threatened species
+            assessed_threat_prop = no_threated/data_sufficient_sp*100) #calculate proportion data sufficient and threated species 
+
+# order species based on richness values from lowest to highest
+EDGE_reptile_summary <- EDGE_reptile_summary[order(EDGE_reptile_summary$assessed_threat_prop, decreasing = TRUE),]
+
+```
+
+# PHASE 2 CALCULATING EXPECTED PD
+
+```{r extracrt expected PD values, echo=TRUE}
+
+# Set.seed value? - what value do I set it to?
+
+# Get random sample of 100 trees instead of 1000 trees for mammals full 
+set.seed(100)
+
+mammal.trees.full <- mammal.trees.full[sample(1:length(mammal.trees.full), 100, replace=FALSE)]
+
+# Get same distribution for upham
+
+mammal.trees.upham <- mammal.trees.upham[sample(1:length(mammal.trees.upham), 100, replace = FALSE)]
+
+# Convert phylo list into phylo4 object - easier to extract species lists for EDGE mammal trees - 100 trees
+# Set i as 1
+
+x <- 1
+
+mammal.trees.full <- lapply(c(1:length(mammal.trees.full)), function(x) as(mammal.trees.full[[x]], "phylo4"))
+
+y <- 1
+# Same procedure for mammal trees upham - 100 trees
+mammal.trees.upham <- lapply(c(1:length(mammal.trees.upham)), function(y) as(mammal.trees.upham[[y]], "phylo4"))
+
+
+# Save new trees
+save(mammal.trees.full, mammal.trees.upham, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/mammal_phylogenies_new_distribution.RData")
+
+# Check if trees are identical
+identical(mammal.trees.full,as(new_mammal_trees,"phylo"))
+
+# Extract expected PD scores for each family
+EDGE_family <- EDGE_mammals %>% 
+  dplyr::select(Family, Species)
+
+# Create vecotr of family names
+names <- c(unique(EDGE_family$Family))
+
+# split species by family- output is a list
+EDGE_family <- base::split(EDGE_family, f = EDGE_family$Family)
+
+# Loop to extract ePD over a 100 iterations of phylogenetic trees
+
+# Creating a dataframe to store exPD values and for exPD UPHAM
+ex_PD_full <- data.frame(matrix( , ncol = 7, nrow = length(EDGE_family)))
+
+# Change column names
+colnames(ex_PD_full)<-c("Family", "Median exPD", "IQR", "Range", "Median ePD UPHAM", "IQR UPHAM", "Range UPHAM")
+
+# Put vector of family names in dataset
+ex_PD_full[,1] <- names
+  
+# Create dataframe to store exPD iterations
+data_out <- data.frame(matrix( , ncol = 1, nrow = length(EDGE_family)))
+
+# Change column names
+colnames(data_out)<-c("Family")
+
+# Put vector of family names in dataset
+data_out[,1] <- names
+
+j <- 1
+
+k <- 1
+
+
+for (j in 1:length(mammal.trees.full)){
+  
+  # Add an extra blank column to dataframe for loop
+  data_out <- cbind(data_out, data.frame(x = NA))
+  
+  # Paste in tree name to each column
+  colnames(data_out)[NCOL(data_out)] <- paste("tree.", j, sep = "") 
+  
+  #print(mammal.trees.full[[j]])
+  
+  for (k in 1:length(EDGE_family)){
+    
+      # get most recent common ancestor for each list of family
+  MRCA_nodes <- MRCA(mammal.trees.full[[j]], c(EDGE_family[[k]]$Species))
+  
+  # Calculate exPD by summing branch lengths of ancestor and descendant branches to MRCA node
+  total_expected_PD <- sumEdgeLength(mammal.trees.full[[j]], ancestors(mammal.trees.full[[j]], MRCA_nodes, type= "ALL")) + sumEdgeLength(mammal.trees.full[[j]], descendants(mammal.trees.full[[j]], MRCA_nodes, type= "ALL"))
+  
+  # insert k values after first column to stop family name being overridden by exPD
+  data_out[k, ncol(data_out)] <- total_expected_PD 
+  
+  print(paste("tree", j, "Family", k, sep = "_"))
+    
+  }
+  
+  # Calculate median, IQR and range for each family from 100 iterations
+  M <- median(data_out$Family, na.rm = TRUE)
+  InterQR <- IQR(data_out$Family, na.rm = TRUE)
+  R <- range(data_out$Family, na.rm = TRUE)
+  
+  # Input the data calculated into final dataframe
+  ex_PD_full$`Median exPD`[k] <- M
+  ex_PD_full$IQR[k] <- InterQR
+  ex_PD_full$Range[k] <- R
+  
+}
+
+# join results to summary mammal table
+#new_df <- left_join(EDGE_mammal_summary, ex_PD_full, by = "Family")
+
+# Apply function to upham dataset
+# Create dataframe with species used in Upham analysis
+upham_df <- as.data.frame(mammal.trees.upham[[1]]@label)
+
+# Name column Family
+colnames(upham_df) <- c("Species")
+
+# Merge upham with EDGE mammal dataset- gives EDGE df with only upham species names
+upham_df <- merge(EDGE_mammals, upham_df)
+
+UPHAM_family <- upham_df %>% 
+  dplyr::select(Family, Species)
+
+# Order families alphabetically 
+UPHAM_family <- UPHAM_family[order(UPHAM_family$Family, decreasing = FALSE),]
+
+# split species by family- output is a list
+UPHAM_family <- base::split(UPHAM_family, f = UPHAM_family$Family)
+
+# Create dataframe to store exPD iterations
+data_out_upham <- data.frame(matrix( , ncol = 1, nrow = length(UPHAM_family)))
+
+# Change column names
+colnames(data_out_upham)<-c("Family")
+
+# Put vector of family names in dataset
+data_out_upham[,1] <- names
+
+i <- 1
+
+g <- 1
+
+
+for (i in 1:length(mammal.trees.upham)){
+  
+  # Add an extra blank column to dataframe for loop
+  data_out_upham <- cbind(data_out_upham, data.frame(x = NA))
+  
+  # Paste in tree name to each column
+  colnames(data_out_upham)[NCOL(data_out_upham)] <- paste("tree.", j, sep = "") 
+  
+  #print(mammal.trees.full[[j]])
+  
+  for (g in 1:length(UPHAM_family)){
+    
+      # get most recent common ancestor for each list of family
+  MRCA_nodes <- MRCA(mammal.trees.full[[i]], c(UPHAM_family[[g]]$Species))
+  
+  # Calculate exPD by summing branch lengths of ancestor and descendant branches to MRCA node
+  total_expected_PD <- sumEdgeLength(mammal.trees.full[[i]], ancestors(mammal.trees.full[[i]], MRCA_nodes, type= "ALL")) + sumEdgeLength(mammal.trees.full[[i]], descendants(mammal.trees.full[[i]], MRCA_nodes, type= "ALL"))
+  
+  # insert k values after first column to stop family name being overridden by exPD
+  data_out[g, ncol(data_out_upham)] <- total_expected_PD 
+  
+  print(paste("tree", j, "Family", k, sep = "_"))
+    
+  }
+  
+  # Calculate median, IQR and range for each family from 100 iterations
+  M_upham <- median(data_out_upham$Family, na.rm = TRUE)
+  InterQR_upham <- IQR(data_out_upham$Family, na.rm = TRUE)
+  R_upham <- range(data_out_upham$Family, na.rm = TRUE)
+  
+  # Input the data calculated into final dataframe
+  ex_PD_full$`Median ePD UPHAM`[g] <- M_upham
+  ex_PD_full$`IQR UPHAM`[g] <- InterQR_upham
+  ex_PD_full$`Range UPHAM`[g] <- R_upham
+  
+}
+
+
+
+
+
+# Obtain nearest common ancestor for Family using one distribution of phylogenetic trees
+x <- MRCA(mammal.trees.full[[8]], c(EDGE_family$Camelidae$Species))
+
+
+
+name <- unique(EDGE_mammals$Family)
+
+# Create species list with family in it - SCRAP CODE
+
+for (j in 1:length(EDGE_mammals)) {
+  
+  sp_family[j] <- list(EDGE_mammals$Species %in% unique(EDGE_mammals$Family[j],))
+  
+      #EDGE_mammals[EDGE_mammals$Species %in% EDGE_mammals$Family[j],]
+    
+  name[j] <- unique(EDGE_mammals$Family[[j]])
+  
+  sp_list[j] <- EDGE_mammals[EDGE_mammals$Family %in% name,]
+  
+  print(name)
+  
+}
+
+  
+
+left_join()
+
+
+# extract expected PD on subset species in mammalian family 
+
+# Subset a family
+
+# Create species list
+test <- subset(EDGE_mammals, Family %in% c('Bathyergidae'))
+
+test <- test[3]
+
+# Find most recent common ancestor using species list
+x <- MRCA(mammal.trees.full[[1]], c(test$Species))
+
+
+# Get ancestral nodes
+nodes <- ancestors(new_mammal_tree, x, type = "all")
+
+# Get descendant species?
+z <- descendants(new_mammal_tree, x, type = "all")
+
+# Sum ancestral and descendnat nodes
+sum(new_mammal_tree@edge.length[which(new_mammal_tree@edge[,2] %in% z)])
+
+# summing together ancestral and descendant PD
+tota_expected_PD <- sumEdgeLength(mammal.trees.full[[1]], ancestors(mammal.trees.full[[1]], x, type= "ALL")) + sumEdgeLength(mammal.trees.full[[1]], descendants(mammal.trees.full[[1]], x, type= "ALL"))
+
+
+descendant_pd <- sumEdgeLength(new_mammal_tree, descendants(new_mammal_tree, x, type="ALL"))
+
+total_PD <- ancestor_pd + descendant_pd
+
+
+tips <- tipLabels(mammal.trees.full)[tipLabels(mammal.trees.full) %in% EDGE_mammals$Species]
+
+head(mammal.trees.full)
+
+str(mammal.trees.upham[1])
+
+# sum phylogenetic branch lengths
+sum(mammal.trees.full[[1]]$edge.length)
+
+# get most recent common ancestor for all species in a list
+# output value provided is a matrix
+
+MRCA(mammal.trees.full, c(1,7))
+
+
+n <- mrca.phylo(mammal.trees.full[[1]], full = FALSE)
+
+# Describe relationship among phylogenetic nodes - output provided as a list
+# for the middle argument, need an indication of node- I thought use the MRCA nodes but not sure if that's the right choice?
+x <- Ancestors(mammal.trees.full[[1]], n, "all") 
+
+# get all descendant nodes from each node - output provided as a list - not 100% sure if I can just put my whole MRCA matrix in here?
+y <- Descendants(mammal.trees.full[[1]], n, "all")
+
+test <- MRCA(mammal.trees.full, c("Abrocoma boliviensis"))
+
+
+# An attempt to get lengths of ancestral branches to MRCA node
+# Here was my train of thoughts:
+# 1. get MRCA nodes for a subset of dataset
+# 2. Use Ancestors/ Descendants functions to describe relationships along nodes (this output provides me with a list)
+# 3. Get the distance of ancestral/descentdant branches to MRCA nodes by matching the edge.length to nodes in the phylogeny - this is the step I don't think is right but would like some feedback if I am on the right track
+
+ancestor_node <- phangorn::Ancestors(mammal.trees.full[[1]], n, "all")
+
+dist_to_MRCA_node <- mammal.trees.full[[1]]$edge.length[mammal.trees.full[[1]]$edge[,2] == ancestor_node[[1]]] 
+
+# Another thought I had would be turning the tree into a phylo4 object and I've seen in your code the function edgeLength() to get length of ancestral branches to MRCA node- let me know if that's a possibility or if this step is uncessarary 
+
+
+# Do it in a list - exploring ways to do this with an apply function or loop
+lapply(tree, FUN = function(x) sum(x$edge.length))
+
+lapply(mammal.trees.full[[1]], FUN = function(x) mrca(mammal.trees.full[[1]]))
+
+
+```
