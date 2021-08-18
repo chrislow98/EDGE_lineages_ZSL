@@ -334,14 +334,15 @@ EDGE_family <- base::split(EDGE_family, f = EDGE_family$Family)
 # Loop to extract ePD over a 100 iterations of phylogenetic trees
 
 # Creating a dataframe to store exPD values and for exPD UPHAM
-ex_PD_full <- data.frame(matrix( , ncol = 7, nrow = length(EDGE_family)))
+ex_PD_full <- data.frame(matrix( , ncol = 11, nrow = length(EDGE_family)))
 
 # Change column names
-colnames(ex_PD_full)<-c("Family", "Median exPD", "IQR", "Range", "Median ePD UPHAM", "IQR UPHAM", "Range UPHAM")
+colnames(ex_PD_full)<-c("Family", "Median.exPD", "Lwr.Quantile", "Uppr.Quantile", "Lwr.Range", "Uppr.Range", 
+                        "Median.ePD.UPHAM", "Lwr.Quantile.UPHAM", "Uppr.Quantile.UPHAM", "Lwr.Range.UPHAM", "Uppr.Range.UPHAM")
 
 # Put vector of family names in dataset
 ex_PD_full[,1] <- names
-  
+
 # Create dataframe to store exPD iterations
 data_out <- data.frame(matrix( , ncol = 1, nrow = length(EDGE_family)))
 
@@ -356,7 +357,7 @@ j <- 1
 k <- 1
 
 
-for (j in 1:length(mammal.trees.full)){
+for (j in 2:length(mammal.trees.full)){
   
   # Add an extra blank column to dataframe for loop
   data_out <- cbind(data_out, data.frame(x = NA))
@@ -368,33 +369,45 @@ for (j in 1:length(mammal.trees.full)){
   
   for (k in 1:length(EDGE_family)){
     
-      # get most recent common ancestor for each list of family
-  MRCA_nodes <- MRCA(mammal.trees.full[[j]], c(EDGE_family[[k]]$Species))
-  
-  # Calculate exPD by summing branch lengths of ancestor and descendant branches to MRCA node
-  total_expected_PD <- sumEdgeLength(mammal.trees.full[[j]], ancestors(mammal.trees.full[[j]], MRCA_nodes, type= "ALL")) + sumEdgeLength(mammal.trees.full[[j]], descendants(mammal.trees.full[[j]], MRCA_nodes, type= "ALL"))
-  
-  # insert k values after first column to stop family name being overridden by exPD
-  data_out[k, ncol(data_out)] <- total_expected_PD 
-  
-  print(paste("tree", j, "Family", k, sep = "_"))
+    # get most recent common ancestor for each list of family
+    MRCA_nodes <- MRCA(mammal.trees.full[[j]], c(EDGE_family[[k]]$Species))
     
+    # Calculate exPD by summing branch lengths of ancestor and descendant branches to MRCA node
+    total_expected_PD <- sumEdgeLength(mammal.trees.full[[j]], ancestors(mammal.trees.full[[j]], MRCA_nodes, type= "ALL")) + sumEdgeLength(mammal.trees.full[[j]], descendants(mammal.trees.full[[j]], MRCA_nodes, type= "ALL"))
+    
+    # insert k values after first column to stop family name being overridden by exPD
+    if(!is.na(total_expected_PD)){
+      data_out[k, ncol(data_out)] <- total_expected_PD 
+    }else{
+      stop(paste("ePD loss score wass not calculated for family ",k," (",data_out$Family[k],") - in tree ",j,sep = ""))
+    }
+    print(paste("tree", j, "Family", k, sep = "_"))
   }
-  
-  # Calculate median, IQR and range for each family from 100 iterations
-  M <- median(data_out$Family, na.rm = TRUE)
-  InterQR <- IQR(data_out$Family, na.rm = TRUE)
-  R <- range(data_out$Family, na.rm = TRUE)
-  
-  # Input the data calculated into final dataframe
-  ex_PD_full$`Median exPD`[k] <- M
-  ex_PD_full$IQR[k] <- InterQR
-  ex_PD_full$Range[k] <- R
-  
 }
 
-# join results to summary mammal table
-#new_df <- left_join(EDGE_mammal_summary, ex_PD_full, by = "Family")
+# Calculate median, IQR and range for each family from 100 iterations
+
+save(data_out, file = "100_family_EDGE_scores.RData")
+
+# this is how you do it for median - do it for lower IQR, upper IQR, lower and upper range too!
+i <- 1
+for(i in 1:NROW(ex_PD_full)){
+ ex_PD_full$Median.exPD[i] <- median(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]),c(2:NCOL(data_out))])),na.rm = T)
+  
+ # Find out lower quantile
+ ex_PD_full$Lwr.Quantile[i] <- quantile(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out))])), c(0.25), na.rm = T)
+
+ # Find out upper IQR
+ ex_PD_full$Uppr.Quantile[i] <- quantile(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out))])), c(0.75), na.rm = T)
+ 
+ # Find out lower range
+ ex_PD_full$Lwr.Range[i] <- min(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out))])), na.rm = T)
+ 
+ # Find out upper range
+ ex_PD_full$Uppr.Range[i] <- max(as.vector(as.numeric(data_out[which(data_out$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out))])), na.rm = T)
+ 
+}
+
 
 # Apply function to upham dataset
 # Create dataframe with species used in Upham analysis
@@ -424,45 +437,57 @@ colnames(data_out_upham)<-c("Family")
 # Put vector of family names in dataset
 data_out_upham[,1] <- names
 
-i <- 1
+x <- 1
 
 g <- 1
 
 
-for (i in 1:length(mammal.trees.upham)){
+for (i in 2:length(mammal.trees.upham)){
   
   # Add an extra blank column to dataframe for loop
   data_out_upham <- cbind(data_out_upham, data.frame(x = NA))
   
   # Paste in tree name to each column
-  colnames(data_out_upham)[NCOL(data_out_upham)] <- paste("tree.", j, sep = "") 
+  colnames(data_out_upham)[NCOL(data_out_upham)] <- paste("tree.", x, sep = "") 
   
   #print(mammal.trees.full[[j]])
   
   for (g in 1:length(UPHAM_family)){
     
-      # get most recent common ancestor for each list of family
-  MRCA_nodes <- MRCA(mammal.trees.full[[i]], c(UPHAM_family[[g]]$Species))
-  
-  # Calculate exPD by summing branch lengths of ancestor and descendant branches to MRCA node
-  total_expected_PD <- sumEdgeLength(mammal.trees.full[[i]], ancestors(mammal.trees.full[[i]], MRCA_nodes, type= "ALL")) + sumEdgeLength(mammal.trees.full[[i]], descendants(mammal.trees.full[[i]], MRCA_nodes, type= "ALL"))
-  
-  # insert k values after first column to stop family name being overridden by exPD
-  data_out[g, ncol(data_out_upham)] <- total_expected_PD 
-  
-  print(paste("tree", j, "Family", k, sep = "_"))
+    # get most recent common ancestor for each list of family
+    MRCA_nodes <- MRCA(mammal.trees.upham[[x]], c(UPHAM_family[[g]]$Species))
     
+    # Calculate exPD by summing branch lengths of ancestor and descendant branches to MRCA node
+    total_expected_PD <- sumEdgeLength(mammal.trees.upham[[x]], ancestors(mammal.trees.upham[[x]], MRCA_nodes, type= "ALL")) + sumEdgeLength(mammal.trees.upham[[x]], descendants(mammal.trees.upham[[x]], MRCA_nodes, type= "ALL"))
+    
+    # insert k values after first column to stop family name being overridden by exPD
+    if(!is.na(total_expected_PD)){
+      data_out_upham[g, ncol(data_out_upham)] <- total_expected_PD 
+    }else{
+      stop(paste("ePD loss score wass not calculated for family ",g," (",data_out_upham$Family[g],") - in tree ",x,sep = ""))
+    }
+    print(paste("tree", x, "Family", g, sep = "_"))
   }
+}
+
+# Calculate median, IQR and range for each family from 100 iterations
+
+# this is how you do it for median - do it for lower IQR, upper IQR, lower and upper range too!
+i <- 1
+for(i in 1:NROW(ex_PD_full)){
+  ex_PD_full$Median.ePD.UPHAM[i] <- median(as.vector(as.numeric(data_out_upham[which(data_out_upham$Family == ex_PD_full$Family[i]),c(2:NCOL(data_out_upham))])),na.rm = T)
   
-  # Calculate median, IQR and range for each family from 100 iterations
-  M_upham <- median(data_out_upham$Family, na.rm = TRUE)
-  InterQR_upham <- IQR(data_out_upham$Family, na.rm = TRUE)
-  R_upham <- range(data_out_upham$Family, na.rm = TRUE)
+  # Find out lower quantile
+  ex_PD_full$Lwr.Quantile.UPHAM[i] <- quantile(as.vector(as.numeric(data_out_upham[which(data_out_upham$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out_upham))])), c(0.25), na.rm = T)
   
-  # Input the data calculated into final dataframe
-  ex_PD_full$`Median ePD UPHAM`[g] <- M_upham
-  ex_PD_full$`IQR UPHAM`[g] <- InterQR_upham
-  ex_PD_full$`Range UPHAM`[g] <- R_upham
+  # Find out upper IQR
+  ex_PD_full$Uppr.Quantile.UPHAM[i] <- quantile(as.vector(as.numeric(data_out_upham[which(data_out_upham$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out_upham))])), c(0.75), na.rm = T)
+  
+  # Find out lower range
+  ex_PD_full$Lwr.Range.UPHAM[i] <- min(as.vector(as.numeric(data_out_upham[which(data_out_upham$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out_upham))])), na.rm = T)
+  
+  # Find out upper range
+  ex_PD_full$Uppr.Range.UPHAM[i] <- max(as.vector(as.numeric(data_out_upham[which(data_out_upham$Family == ex_PD_full$Family[i]), c(2:NCOL(data_out_upham))])), na.rm = T)
   
 }
 
@@ -470,109 +495,10 @@ for (i in 1:length(mammal.trees.upham)){
 
 
 
-# Obtain nearest common ancestor for Family using one distribution of phylogenetic trees
-x <- MRCA(mammal.trees.full[[8]], c(EDGE_family$Camelidae$Species))
 
 
 
-name <- unique(EDGE_mammals$Family)
 
-# Create species list with family in it - SCRAP CODE
-
-for (j in 1:length(EDGE_mammals)) {
-  
-  sp_family[j] <- list(EDGE_mammals$Species %in% unique(EDGE_mammals$Family[j],))
-  
-      #EDGE_mammals[EDGE_mammals$Species %in% EDGE_mammals$Family[j],]
-    
-  name[j] <- unique(EDGE_mammals$Family[[j]])
-  
-  sp_list[j] <- EDGE_mammals[EDGE_mammals$Family %in% name,]
-  
-  print(name)
-  
-}
-
-  
-
-left_join()
-
-
-# extract expected PD on subset species in mammalian family 
-
-# Subset a family
-
-# Create species list
-test <- subset(EDGE_mammals, Family %in% c('Bathyergidae'))
-
-test <- test[3]
-
-# Find most recent common ancestor using species list
-x <- MRCA(mammal.trees.full[[1]], c(test$Species))
-
-
-# Get ancestral nodes
-nodes <- ancestors(new_mammal_tree, x, type = "all")
-
-# Get descendant species?
-z <- descendants(new_mammal_tree, x, type = "all")
-
-# Sum ancestral and descendnat nodes
-sum(new_mammal_tree@edge.length[which(new_mammal_tree@edge[,2] %in% z)])
-
-# summing together ancestral and descendant PD
-tota_expected_PD <- sumEdgeLength(mammal.trees.full[[1]], ancestors(mammal.trees.full[[1]], x, type= "ALL")) + sumEdgeLength(mammal.trees.full[[1]], descendants(mammal.trees.full[[1]], x, type= "ALL"))
-
-
-descendant_pd <- sumEdgeLength(new_mammal_tree, descendants(new_mammal_tree, x, type="ALL"))
-
-total_PD <- ancestor_pd + descendant_pd
-
-
-tips <- tipLabels(mammal.trees.full)[tipLabels(mammal.trees.full) %in% EDGE_mammals$Species]
-
-head(mammal.trees.full)
-
-str(mammal.trees.upham[1])
-
-# sum phylogenetic branch lengths
-sum(mammal.trees.full[[1]]$edge.length)
-
-# get most recent common ancestor for all species in a list
-# output value provided is a matrix
-
-MRCA(mammal.trees.full, c(1,7))
-
-
-n <- mrca.phylo(mammal.trees.full[[1]], full = FALSE)
-
-# Describe relationship among phylogenetic nodes - output provided as a list
-# for the middle argument, need an indication of node- I thought use the MRCA nodes but not sure if that's the right choice?
-x <- Ancestors(mammal.trees.full[[1]], n, "all") 
-
-# get all descendant nodes from each node - output provided as a list - not 100% sure if I can just put my whole MRCA matrix in here?
-y <- Descendants(mammal.trees.full[[1]], n, "all")
-
-test <- MRCA(mammal.trees.full, c("Abrocoma boliviensis"))
-
-
-# An attempt to get lengths of ancestral branches to MRCA node
-# Here was my train of thoughts:
-# 1. get MRCA nodes for a subset of dataset
-# 2. Use Ancestors/ Descendants functions to describe relationships along nodes (this output provides me with a list)
-# 3. Get the distance of ancestral/descentdant branches to MRCA nodes by matching the edge.length to nodes in the phylogeny - this is the step I don't think is right but would like some feedback if I am on the right track
-
-ancestor_node <- phangorn::Ancestors(mammal.trees.full[[1]], n, "all")
-
-dist_to_MRCA_node <- mammal.trees.full[[1]]$edge.length[mammal.trees.full[[1]]$edge[,2] == ancestor_node[[1]]] 
-
-# Another thought I had would be turning the tree into a phylo4 object and I've seen in your code the function edgeLength() to get length of ancestral branches to MRCA node- let me know if that's a possibility or if this step is uncessarary 
-
-
-# Do it in a list - exploring ways to do this with an apply function or loop
-lapply(tree, FUN = function(x) sum(x$edge.length))
-
-lapply(mammal.trees.full[[1]], FUN = function(x) mrca(mammal.trees.full[[1]]))
 
 
 ```
