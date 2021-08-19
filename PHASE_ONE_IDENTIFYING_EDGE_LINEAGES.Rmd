@@ -127,7 +127,7 @@ EDGE_mammals <- EDGE_mammals[order(EDGE_mammals$Family),]
 EDGE_mammal_summary <- EDGE_mammals %>% 
   dplyr::select(Family, RL.cat, RL_binary) %>%
   group_by(Family) %>% #group summary figures by family
-  summarise(richness = length(Family), # calculate richness for families
+  dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
@@ -178,7 +178,7 @@ EDGE_birds <- EDGE_birds[order(EDGE_birds$Family),]
 EDGE_bird_summary <- EDGE_birds %>% 
   dplyr::select(Family, RL.cat, RL_binary) %>% 
   group_by(Family) %>% #group summary figures by family
-  summarise(richness = length(Family), # calculate richness for families
+  dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
@@ -226,7 +226,7 @@ EDGE_amphibians <- EDGE_amphibians[order(EDGE_amphibians$Family),]
 EDGE_amphibian_summary <- EDGE_amphibians %>% 
   dplyr::select(Family, RL.cat, RL_binary) %>% 
   group_by(Family) %>% #group summary figures by family
-  summarise(richness = length(Family), # calculate richness for families
+  dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
@@ -275,7 +275,7 @@ EDGE_reptiles <- EDGE_reptiles[order(EDGE_reptiles$Family),]
 EDGE_reptile_summary <- EDGE_reptiles %>% 
   dplyr::select(Family, RL.cat, RL_binary) %>% 
   group_by(Family) %>% #group summary figures by family
-  summarise(richness = length(Family), # calculate richness for families
+  dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
@@ -286,6 +286,8 @@ EDGE_reptile_summary <- EDGE_reptiles %>%
 
 # order species based on richness values from lowest to highest
 EDGE_reptile_summary <- EDGE_reptile_summary[order(EDGE_reptile_summary$assessed_threat_prop, decreasing = TRUE),]
+
+save(EDGE_mammal_summary, EDGE_bird_summary, EDGE_amphibian_summary, EDGE_reptile_summary, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/summary_EDGE_df.RData")
 
 ```
 
@@ -326,7 +328,7 @@ identical(mammal.trees.full,as(new_mammal_trees,"phylo"))
 EDGE_family <- EDGE_mammals %>% 
   dplyr::select(Family, Species)
 
-# Create vecotr of family names
+# Create vector of family names
 names <- c(unique(EDGE_family$Family))
 
 # split species by family- output is a list
@@ -389,6 +391,8 @@ for (j in 2:length(mammal.trees.full)){
 # Calculate median, IQR and range for each family from 100 iterations
 
 save(data_out, file = "100_family_EDGE_scores.RData")
+
+base::load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/100_family_EDGE_scores.RData")
 
 # this is how you do it for median - do it for lower IQR, upper IQR, lower and upper range too!
 i <- 1
@@ -495,14 +499,10 @@ for(i in 1:NROW(ex_PD_full)){
   
 }
 
+test <- merge(EDGE_mammal_summary, ex_PD_full)
 
+test <- test[order(test$assessed_threat_prop, decreasing = TRUE),]
 
-
-
-
-
-
-
-
+save(data_out, ex_PD_full, mammal.trees.full, mammal.trees.upham, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/100_family_EDGE_scores.RData")
 
 ```
