@@ -71,7 +71,7 @@ renv::snapshot()
 
 ```{r Load Data, echo=TRUE}
 
-# Load in csv data
+# Load in csv data 
 
 EDGE_mammals <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_mammals.csv", stringsAsFactors = FALSE)
 
