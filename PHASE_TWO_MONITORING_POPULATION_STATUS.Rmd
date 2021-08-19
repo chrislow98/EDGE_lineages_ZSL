@@ -20,6 +20,7 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r load packages, echo=FALSE}
 
 library(dplyr)
+library(plyr)
 library(rredlist)
 library(stringr)
 
@@ -87,23 +88,14 @@ mammals_old_RLI$Family <- str_to_title(mammals_old_RLI$Family)
 # Input "_" between species names
 mammals_old_RLI$Name <- gsub(' ', '_', mammals_old_RLI$Name)
 
-# Get RLI for mammals
+# Get RLI for mammal families
 
 RLI_summary <- mammals_old_RLI %>% 
-  dplyr::select(Family, X1996.RL.cat, X2008.RL.cat) %>% 
-  dplyr::group_by(Family) %>% 
-  dplyr::summarise(RLI_1996 = get_rli(mammals_old_RLI$X1996.RL.cat),
-            RLI_2008 = get_rli(mammals_old_RLI$X2008.RL.cat))
+  dplyr::select(Family, X1996.RL.cat, X2008.RL.cat) %>% # important when specifiying varibales to just use variable names in the rest of the pipeline
+  group_by(Family) %>% 
+  dplyr::summarise(RLI_1996 = get_rli(X1996.RL.cat),
+            RLI_2008 = get_rli(X2008.RL.cat))
 
-
-# get_rli works when I subset each family but not when I use the dplyr function
-test1 <- mammals_old_RLI[mammals_old_RLI[["Family"]]=="Atelidae",]
-
-test2 <- mammals_old_RLI[mammals_old_RLI[["Family"]] == "Rhinocerotidae",]
-
-get_rli(test1$X1996.RL.cat)
-
-get_rli(test2$X2008.RL.cat)
 
 
 ```
