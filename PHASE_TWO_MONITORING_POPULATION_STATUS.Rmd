@@ -88,14 +88,27 @@ mammals_old_RLI$Family <- str_to_title(mammals_old_RLI$Family)
 # Input "_" between species names
 mammals_old_RLI$Name <- gsub(' ', '_', mammals_old_RLI$Name)
 
+# Change population decrease or increase into binary values
+mammals_old_RLI$Up.down[mammals_old_RLI$Up.down == "up"] <- 1 
+mammals_old_RLI$Up.down[mammals_old_RLI$Up.down == "down"] <- 0 
+
 # Get RLI for mammal families
 
 RLI_summary <- mammals_old_RLI %>% 
-  dplyr::select(Family, X1996.RL.cat, X2008.RL.cat) %>% # important when specifiying varibales to just use variable names in the rest of the pipeline
+  dplyr::select(Family, X1996.RL.cat, X2008.RL.cat, Up.down) %>% # important when specifiying varibales to just use variable names in the rest of the pipeline
+  #filter(mammals_old_RLI) %>% 
   group_by(Family) %>% 
   dplyr::summarise(RLI_1996 = get_rli(X1996.RL.cat),
-            RLI_2008 = get_rli(X2008.RL.cat))
+            RLI_2008 = get_rli(X2008.RL.cat),
+            pop_trend_inc = sum(Up.down == "1", na.rm = TRUE),
+            pop_trend_dec = sum(Up.down == "0", na.rm = TRUE)) 
 
+
+
+# Red list random sample
+RLI_sample <- mammals_old_RLI[sample(nrow(mammals_old_RLI), 200), ]
+  
+get_rli(RLI_sample$X1996.RL.cat)
 
 
 ```
