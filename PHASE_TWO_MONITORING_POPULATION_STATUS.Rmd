@@ -23,6 +23,8 @@ library(dplyr)
 library(plyr)
 library(rredlist)
 library(stringr)
+library(taxize)
+library(tidyverse)
 
 ```
 
@@ -80,7 +82,61 @@ get_rli <- function(species_categories) {
 
 ```
 
+# Retriving and manipulating data from the IUCN data portal (need API key)
+
+```{r IUCN status and category, echo=TRUE}
+
+# Function to retrieve IUCN data
+
+retrieve_IUCN_data <- function(speciesList){
+  IUCN_status <- data.frame(Order = character(), Species = character(), Status = character(), Trend = character(), stringsAsFactors=FALSE)
+  
+  for(sp in speciesList){
+    UICN_search <- rl_search(name = sp, key = apikey)
+    if (length(UICN_search$result) == 0){
+      IUCN_status_sp <- data.frame(Species = sp, 
+                                   Status = 'NA', 
+                                   Trend = 'NA',
+                                   stringsAsFactors=FALSE)
+      IUCN_status <- rbind(IUCN_status, IUCN_status_sp)
+      cat(sp,'----- CHECK\n') 
+    }
+    else {
+      IUCN_status_sp <- data.frame(Species = UICN_search$result$scientific_name, 
+                                   Status = UICN_search$result$category, 
+                                   Trend = UICN_search$result$population_trend,
+                                   stringsAsFactors=FALSE)
+      IUCN_status <- rbind(IUCN_status, IUCN_status_sp)
+    }
+  }
+  return(IUCN_status)
+}
+
+
+# Apply function to a set of species
+canids <- c('Cerdocyon thous', 'Lycalopex gymnocercus', 'Chrysocyon brachyurus', 'AnyWrong species')
+
+# why will it work for a group of species but not the whole column
+IUCN_canids <- retrieve_IUCN_data(canids)
+
+IUCN_population_data <- retrieve_IUCN_data(aip_sp)
+
+
+```
+
+
 ```{r manipulating dataset, echo=FALSE}
+
+# load in Red List data from API key
+API_mammals <- rl_comp_groups(group = 'mammals', key = apikey, parse = TRUE)
+
+API_list <- as.data.frame(API_mammals$result$scientific_name)
+
+colnames(API_list) <- c("RLI_sp")
+
+test <- rl_growth_forms(name = API_list, key = apikey)
+
+RLI_threats <- rl_threats(name = 'Cerdocyon thous', key = apikey)
 
 # Convert the first letter of every word of a string to Uppercase and the rest of the letters are converted to lower case
 mammals_old_RLI$Family <- str_to_title(mammals_old_RLI$Family)
