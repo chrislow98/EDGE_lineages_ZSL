@@ -119,7 +119,20 @@ canids <- c('Cerdocyon thous', 'Lycalopex gymnocercus', 'Chrysocyon brachyurus',
 # why will it work for a group of species but not the whole column
 IUCN_canids <- retrieve_IUCN_data(canids)
 
-IUCN_population_data <- retrieve_IUCN_data(aip_sp)
+# retrieve species names for mammals in RLI using API key
+API_mammals <- rl_comp_groups(group = 'mammals', key = apikey, parse = TRUE)
+
+API_list <- as.data.frame(API_mammals$result$scientific_name)
+
+colnames(API_list) <- c("RLI_sp")
+
+API_list <- c(API_list$RLI_sp[1:20])
+
+test <- rl_growth_forms(name = API_list, key = apikey)
+
+RLI_threats <- rl_threats(name = 'Cerdocyon thous', key = apikey)
+
+IUCN_population_data <- retrieve_IUCN_data(API_list$RLI_sp)
 
 
 ```
@@ -133,6 +146,8 @@ API_mammals <- rl_comp_groups(group = 'mammals', key = apikey, parse = TRUE)
 API_list <- as.data.frame(API_mammals$result$scientific_name)
 
 colnames(API_list) <- c("RLI_sp")
+
+API_list <- c(API_list$RLI_sp[1:20])
 
 test <- rl_growth_forms(name = API_list, key = apikey)
 
