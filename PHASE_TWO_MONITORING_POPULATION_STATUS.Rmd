@@ -23,8 +23,10 @@ library(dplyr)
 library(plyr)
 library(rredlist)
 library(stringr)
-library(taxize)
 library(tidyverse)
+library(remotes)
+library(devtools)
+install.packages('RS-eco/traitdata')
 
 ```
 
@@ -89,13 +91,14 @@ get_rli <- function(species_categories) {
 # Function to retrieve IUCN data
 
 retrieve_IUCN_data <- function(speciesList){
-  IUCN_status <- data.frame(Order = character(), Species = character(), Status = character(), Trend = character(), stringsAsFactors=FALSE)
+  IUCN_status <- data.frame(TaxonID = character(), Order = character(), Species = character(), Status = character(), Trend = character(), stringsAsFactors=FALSE)
   
   for(sp in speciesList){
-    UICN_search <- rl_search(name = sp, key = apikey)
+    UICN_search <- rl_search(id = sp, key = apikey) 
     if (length(UICN_search$result) == 0){
-      IUCN_status_sp <- data.frame(Order = 'NA',
-                                   Species = sp, 
+      IUCN_status_sp <- data.frame(TaxonID = sp,
+                                   Order = 'NA',
+                                   Species = 'NA', 
                                    Status = 'NA', 
                                    Trend = 'NA',
                                    stringsAsFactors=FALSE)
@@ -103,7 +106,8 @@ retrieve_IUCN_data <- function(speciesList){
       cat(sp,'----- CHECK\n') 
     }
     else {
-      IUCN_status_sp <- data.frame(Order = UICN_search$result$order, 
+      IUCN_status_sp <- data.frame(TaxonID = UICN_search$result$taxonid, 
+                                   Order = UICN_search$result$order, 
                                    Species = UICN_search$result$scientific_name, 
                                    Status = UICN_search$result$category, 
                                    Trend = UICN_search$result$population_trend,
@@ -114,15 +118,84 @@ retrieve_IUCN_data <- function(speciesList){
   return(IUCN_status)
 }
 
-
 # Apply function to a set of species
-canids <- c('Cerdocyon thous', 'Lycalopex gymnocercus', 'Chrysocyon brachyurus', 'AnyWrong species')
+IUCN_pop_data <- EDGE_mammals
 
-# why will it work for a group of species but not the whole column
-IUCN_canids <- retrieve_IUCN_data(canids)
+# subset removing NA's
+IUCN_pop_data <- IUCN_pop_data[complete.cases(IUCN_pop_data$RL.ID),]
+
+# Retrive data for all valid taxonID
+IUCN_pop_full <- retrieve_IUCN_data(IUCN_pop_data$RL.ID)
+
+missing_sp <- IUCN_pop_data[IUCN_pop_data$RL.ID == "12557" | IUCN_pop_data$RL.ID == "6337 "| IUCN_pop_data$RL.ID == "6336 " | IUCN_pop_data$RL.ID == "12392 " | IUCN_pop_data$RL.ID == "13888 " | IUCN_pop_data$RL.ID == "2538" | IUCN_pop_data$RL.ID == "7915",]
+
+# subset all the rows which do contain NA's
+IUCN_NAs <- EDGE_mammals[is.na(EDGE_mammals$RL.ID),]
+
+# reapply function but to look at species names
+
+retrieve_IUCN_data <- function(speciesList){
+  IUCN_status <- data.frame(TaxonID = character(), Order = character(), Species = character(), Status = character(), Trend = character(), stringsAsFactors=FALSE)
+  
+  for(sp in speciesList){
+    UICN_search <- rl_search(name = sp, key = apikey) 
+    if (length(UICN_search$result) == 0){
+      IUCN_status_sp <- data.frame(TaxonID = 'NA',
+                                   Order = 'NA',
+                                   Species = sp, 
+                                   Status = 'NA', 
+                                   Trend = 'NA',
+                                   stringsAsFactors=FALSE)
+      IUCN_status <- rbind(IUCN_status, IUCN_status_sp)
+      cat(sp,'----- CHECK\n') 
+    }
+    else {
+      IUCN_status_sp <- data.frame(TaxonID = UICN_search$result$taxonid, 
+                                   Order = UICN_search$result$order, 
+                                   Species = UICN_search$result$scientific_name, 
+                                   Status = UICN_search$result$category, 
+                                   Trend = UICN_search$result$population_trend,
+                                   stringsAsFactors=FALSE)
+      IUCN_status <- rbind(IUCN_status, IUCN_status_sp)
+    }
+  }
+  return(IUCN_status)
+}
+
+missing_names <- retrieve_IUCN_data(IUCN_NAs$Species)
+
+# remove NA values
+missing_names <- missing_names[!complete.cases(missing_names$Status),]
+
+
+
+test$RL.ID[is.na(test$RL.ID)] <- 0
+
+EDGE_mammals$Species <- gsub('_', ' ', EDGE_mammals$Species)
+
+test1 <- retrieve_IUCN_data(test$RL.ID)
+
+same_sp <- as.data.frame(intersect(EDGE_mammals$Species, API_list$RLI_sp))
+
+diff_sp <- as.data.frame(setdiff(EDGE_mammals$Species, API_list$RLI_sp))
+
+######################## loading in IUCN dataset
+
+IUCN_pop_trend <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/pop_trend_IUCN.csv")
+
+# find out how many species are same
+count(intersect(IUCN_pop_trend$internalTaxonId, EDGE_mammals$RL.ID))
+
+length(setdiff(EDGE_mammals$Species, IUCN_pop_trend$scientificName))
+
+length(setdiff(EDGE_mammals$Species, IUCN_pop_full$Species))
+
+
+#######
 
 # retrieve species names for mammals in RLI using API key
 API_mammals <- rl_comp_groups(group = 'mammals', key = apikey, parse = TRUE)
+
 
 API_list <- as.data.frame(API_mammals$result$scientific_name)
 
@@ -138,20 +211,6 @@ IUCN_population_data <- retrieve_IUCN_data(API_list)
 test <- rl_growth_forms(name = API_list, key = apikey)
 
 RLI_threats <- rl_threats(name = 'Cerdocyon thous', key = apikey)
-
-IUCN_sub <- c(API_list[300:310])
-
-IUCN_sub
-
-sub <- retrieve_IUCN_data('Arctocephalus australis')
-
-for (i in 301:length(API_list)){
-  
-  IUCN_population_data <- retrieve_IUCN_data(API_list[i])
-}
-
-measure <- rl_measures(name = 'Cerdocyon thous', key = apikey)
-
 
 ```
 
@@ -199,5 +258,15 @@ RLI_sample <- mammals_old_RLI[sample(nrow(mammals_old_RLI), 200), ]
   
 get_rli(RLI_sample$X1996.RL.cat)
 
+
+```
+
+# Load in mammal trait data 
+
+```{r load PanTHERIA dataset, echo=TRUE}
+
+
+# Install traitdata package from Github
+devtools::install_github('EcologicalTraitData/traitdataform')
 
 ```
