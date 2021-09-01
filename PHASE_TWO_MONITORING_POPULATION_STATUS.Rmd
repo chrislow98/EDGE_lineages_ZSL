@@ -26,7 +26,8 @@ library(stringr)
 library(tidyverse)
 library(remotes)
 library(devtools)
-install.packages('RS-eco/traitdata')
+library(traitdataform)
+
 
 ```
 
@@ -36,6 +37,7 @@ Load in data to monitor population for Mammal lineages
 ```{r load data, echo=FALSE}
 
 mammals_old_RLI <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Mammal_RLI.csv")
+njdksbhfdsjkds
 
 ```
 
