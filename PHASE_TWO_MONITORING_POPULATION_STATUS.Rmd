@@ -27,8 +27,8 @@ library(tidyverse)
 library(remotes)
 library(devtools)
 library(traitdataform)
-
-hello
+library(traitdata)
+library(rlpi)
 
 ```
 
@@ -267,8 +267,18 @@ get_rli(RLI_sample$X1996.RL.cat)
 
 ```{r load PanTHERIA dataset, echo=TRUE}
 
+#load in dataset - 5798 species
+mannal_bodysize_full <- pantheria
 
-# Install traitdata package from Github
-devtools::install_github('EcologicalTraitData/traitdataform')
+# Get mean body size for each family
+
+mammal_bodysize_full <- mannal_bodysize_full %>% 
+  select(Family, Genus, Species, AdultBodyMass_g, SexualMaturityAge_d) %>% 
+  group_by(Family) %>% 
+  summarise(bodysize_mean = mean(AdultBodyMass_g, na.rm = TRUE),
+            Genlength_mean = mean(SexualMaturityAge_d, na.rm = TRUE))
+
+# join to big dataframe
+
 
 ```
