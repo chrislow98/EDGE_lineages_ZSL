@@ -22,7 +22,6 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r setup, echo=FASLE}
 
-library(renv)
 library(dplyr)
 library(tidyverse)
 library(stringr)
@@ -36,36 +35,6 @@ library(phylobase)
 library(performance)
 
 ```
-
-## Create a respoitory where all your package resources are saved
-
-```{r renv package, echo}
-
-# Start a new project and save all existing package dependencies
-
-renv::init(project = "C:/Users/Student/Documents/UCL/MRes Biodiversity, Evolution and Conservation/Project 2/EDGE_lineages/Github", bare = TRUE)
-
-# save library state to lockfile
-renv::snapshot()
-
-# install digest 0.6.19
-#renv::install("digest@0.6.19")
-
-# remove digest from library
-#renv::remove("digest")
-
-# check library status
-#renv::status()
-
-# restore lockfile, thereby reinstalling digest 0.6.19
-#renv::restore()
-
-# restore automatic snapshots
-#options(renv.config.auto.snapshot = auto.snapshot)
-
-
-```
-
 
 ## Step One- load data
 
