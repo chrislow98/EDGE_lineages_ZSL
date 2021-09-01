@@ -280,5 +280,17 @@ mammal_bodysize_full <- mannal_bodysize_full %>%
 
 # join to big dataframe
 
+# load in Pacifici et al. (2013) generation length dataset
+
+Generation_length <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Genlength_mammals.csv")
+
+# Get mean genreation length (days) for each family
+mammal_genlength <- Generation_length %>% 
+  dplyr::select(TaxID, Family, Scientific_name, GenerationLength_d) %>% 
+  group_by(Family) %>% 
+  summarise(Gen_length = mean(GenerationLength_d, na.rm = TRUE))
+
+# JOin to main dataset?
+
 
 ```
