@@ -37,7 +37,11 @@ Load in data to monitor population for Mammal lineages
 
 ```{r load data, echo=FALSE}
 
+EDGE_mammals <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_mammals.csv", stringsAsFactors = FALSE)
+
 mammals_old_RLI <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Mammal_RLI.csv")
+
+IUCN_pop_trend <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/pop_trend_IUCN.csv")
 
 ```
 
@@ -181,16 +185,39 @@ same_sp <- as.data.frame(intersect(EDGE_mammals$Species, API_list$RLI_sp))
 
 diff_sp <- as.data.frame(setdiff(EDGE_mammals$Species, API_list$RLI_sp))
 
-######################## loading in IUCN dataset
+######################## Calculating change in IUCN RL status - DOWNLOADED DATA
+# loading in IUCN dataset
 
-IUCN_pop_trend <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/pop_trend_IUCN.csv")
+# find out how many species are different by Red List ID - 8 species
+length(setdiff(IUCN_pop_trend$internalTaxonId, EDGE_mammals$RL.ID))
 
-# find out how many species are same
-count(intersect(IUCN_pop_trend$internalTaxonId, EDGE_mammals$RL.ID))
+# Assign NA values to unknown RL populations
+IUCN_pop_trend$populationTrend[IUCN_pop_trend$populationTrend == "Increasing"] <- 2
+IUCN_pop_trend$populationTrend[IUCN_pop_trend$populationTrend == "Stable"] <- 1
+IUCN_pop_trend$populationTrend[IUCN_pop_trend$populationTrend == "Decreasing"] <- 0
+IUCN_pop_trend$populationTrend[IUCN_pop_trend$populationTrend == "Unknown"] <- "NA"
 
-length(setdiff(EDGE_mammals$Species, IUCN_pop_trend$scientificName))
+IUCN_pop_trend <- EDGE_mammals %>% 
+  dplyr::select(RL.ID, Family, Species) %>% 
+  left_join(IUCN_pop_trend, by = c("RL.ID" = "internalTaxonId"))
 
-length(setdiff(EDGE_mammals$Species, IUCN_pop_full$Species))
+test <- IUCN_pop_trend %>% 
+  dplyr::select(Family, populationTrend) %>% 
+  dplyr::group_by(Family) %>% 
+  dplyr::summarise(Trend_dec = sum(populationTrend == 0, na.rm = TRUE),
+                   Prop_dec = Trend_dec/length(populationTrend[!is.na(populationTrend)]),
+                   Trend_inc = sum(populationTrend == 2, na.rm = TRUE),
+                   Prop_inc = Trend_inc/length(populationTrend[!is.na(populationTrend)]),
+                   Trend_stab = sum(populationTrend == 1, na.rm = TRUE),
+                   Prop_stab = Trend_stab/length(populationTrend[!is.na(populationTrend)]))
+
+
+
+
+
+sum(lengths(regmatches(IUCN_pop_trend$populationTrend, gregexpr("Increasing", IUCN_pop_trend$populationTrend))))
+
+sum(lengths(regmatches(IUCN_pop_trend$populationTrend, gregexpr("Stable", IUCN_pop_trend$populationTrend))))
 
 
 #######
