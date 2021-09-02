@@ -94,16 +94,19 @@ EDGE_mammals <- EDGE_mammals[order(EDGE_mammals$Family),]
 # Pipe to create new summary dataframe for mammals
 
 EDGE_mammal_summary <- EDGE_mammals %>% 
-  dplyr::select(Family, RL.cat, RL_binary) %>%
+  dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>%
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            # Get mean of median EDGE score for each family
+            EDGE_mean = mean(EDGE.median, na.rm = TRUE),
+            
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
             data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
             
-            unassessed_prop = no_unassessed/richness*100, # calculate the proportion of unassessed and threatened species
-            assessed_threat_prop = no_threated/data_sufficient_sp*100) #calculate proportion data sufficient and threated species 
+            unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
+            assessed_threat_prop = no_threated/data_sufficient_sp) #calculate proportion data sufficient and threated species 
 
 # order species based on richness values from lowest to highest
 EDGE_mammal_summary <- EDGE_mammal_summary[order(EDGE_mammal_summary$assessed_threat_prop, decreasing = TRUE),]
@@ -153,8 +156,8 @@ EDGE_bird_summary <- EDGE_birds %>%
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
             data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
             
-           unassessed_prop = no_unassessed/richness*100, # calculate the proportion of unassessed and threatened species
-            assessed_threat_prop = no_threated/data_sufficient_sp*100) #calculate proportion data sufficient and threated species 
+           unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
+            assessed_threat_prop = no_threated/data_sufficient_sp) #calculate proportion data sufficient and threated species 
 
 # order species based on richness values from lowest to highest
 EDGE_bird_summary <- EDGE_bird_summary[order(EDGE_bird_summary$assessed_threat_prop, decreasing = TRUE),]
@@ -250,8 +253,8 @@ EDGE_reptile_summary <- EDGE_reptiles %>%
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
             data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
 
-           unassessed_prop = no_unassessed/richness*100, # calculate the proportion of unassessed and threatened species
-            assessed_threat_prop = no_threated/data_sufficient_sp*100) #calculate proportion data sufficient and threated species 
+           unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
+            assessed_threat_prop = no_threated/data_sufficient_sp) #calculate proportion data sufficient and threated species 
 
 # order species based on richness values from lowest to highest
 EDGE_reptile_summary <- EDGE_reptile_summary[order(EDGE_reptile_summary$assessed_threat_prop, decreasing = TRUE),]
