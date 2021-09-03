@@ -212,13 +212,30 @@ test <- IUCN_pop_trend %>%
                    Prop_stab = Trend_stab/length(populationTrend[!is.na(populationTrend)]))
 
 
+######################## change in IUCN RL status since 2008 - DOWNLOADED DATA
+
+# Edit old mammmal RL dataframe
+mammals_old_RLI <- mammals_old_RLI %>% 
+  dplyr::select(Sp_code, Order, Family, Name, X1996.RL.cat, X2008.RL.cat)
+
+# join 2008 and current RL statis up
+IUCN_RL_cat_2008 <- IUCN_pop_trend %>% 
+  left_join(mammals_old_RLI, by = c("internalTaxonId" = "Sp_code"))
+
+# Convert RL categories into binary (positive integers for current RL cat and negative integers for 2008 RL)
+IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "LC"] <- 1
+IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "NT"] <- 2
+IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "VU"] <- 3
+IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "EN"] <- 4
+IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "CR"] <- 5
+IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "CR(PE)"] <- 5
+IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "EW"] <- 6
 
 
 
-sum(lengths(regmatches(IUCN_pop_trend$populationTrend, gregexpr("Increasing", IUCN_pop_trend$populationTrend))))
 
-sum(lengths(regmatches(IUCN_pop_trend$populationTrend, gregexpr("Stable", IUCN_pop_trend$populationTrend))))
-
+# code which counts characters instead of having to convert them xx
+sum(lengths(regmatches(IUCN_RL_cat_2008$X2008.RL.cat, gregexpr("EX", IUCN_RL_cat_2008$X2008.RL.cat))))
 
 #######
 
