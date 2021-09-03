@@ -222,15 +222,37 @@ mammals_old_RLI <- mammals_old_RLI %>%
 IUCN_RL_cat_2008 <- IUCN_pop_trend %>% 
   left_join(mammals_old_RLI, by = c("internalTaxonId" = "Sp_code"))
 
-# Convert RL categories into binary (positive integers for current RL cat and negative integers for 2008 RL)
-IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "LC"] <- 1
-IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "NT"] <- 2
-IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "VU"] <- 3
-IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "EN"] <- 4
-IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "CR"] <- 5
-IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "CR(PE)"] <- 5
-IUCN_RL_cat_2008$X2008.RL.cat[IUCN_RL_cat_2008$X2008.RL.cat == "EW"] <- 6
+# Removing NA's values from both datasets- only using species which were both in 2008 and present day
+IUCN_RL_status_combined <- IUCN_RL_cat_2008[!is.na(IUCN_RL_cat_2008$X2008.RL.cat), ]
 
+# Convert RL categories into binary (positive integers for current RL cat and negative integers for 2008 RL)
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "EX"] <- 7 
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "LC"] <- 1
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "NT"] <- 2
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "VU"] <- 3
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "EN"] <- 4
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "CR"] <- 5
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "CR(PE)"] <- 5
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "EW"] <- 6
+IUCN_RL_status_combined$X2008.RL.cat[IUCN_RL_status_combined$X2008.RL.cat == "DD"] <- 20
+
+# convert from character to numeric
+IUCN_RL_status_combined$X2008.RL.cat <- as.numeric(IUCN_RL_status_combined$X2008.RL.cat)
+
+# Do this for the current redlist categories
+IUCN_RL_status_combined$redlistCategory[IUCN_RL_status_combined$redlistCategory == "DD"] <- 10
+IUCN_RL_status_combined$redlistCategory[IUCN_RL_status_combined$redlistCategory == "LC"] <- 1
+IUCN_RL_status_combined$redlistCategory[IUCN_RL_status_combined$redlistCategory == "NT"] <- 2
+IUCN_RL_status_combined$redlistCategory[IUCN_RL_status_combined$redlistCategory == "VU"] <- 3
+IUCN_RL_status_combined$redlistCategory[IUCN_RL_status_combined$redlistCategory == "EN"] <- 4
+IUCN_RL_status_combined$redlistCategory[IUCN_RL_status_combined$redlistCategory == "CR"] <- 5
+IUCN_RL_status_combined$redlistCategory[IUCN_RL_status_combined$redlistCategory == "EW"] <- 6
+
+# convert from character to numeric
+IUCN_RL_status_combined$redlistCategory <- as.numeric(IUCN_RL_status_combined$redlistCategory)
+
+# subtract columns to find change in RL
+IUCN_RL_status_combined$RL_change <- (IUCN_RL_status_combined$X2008.RL.cat - IUCN_RL_status_combined$redlistCategory)
 
 
 
