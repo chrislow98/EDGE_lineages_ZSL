@@ -428,6 +428,23 @@ ggplot_lpi(Nearc_mams_lpi, ylims=c(0, 2))
 # Default gives 100 bootstraps (this will take a few minutes to run on a 2014 MacBook)
 Nearc_birds_lpi <- LPIMain("example_data/terrestrial_Nearctic_Aves_infile.txt", VERBOSE=FALSE)
 
+### seeing how much data coverage there is for edge priority lineages
+LPI_coverage <- LPI_mammals[!LPI_mammals$Family %in% EDGE_priority_lineages$Family,]
+
+proption_LPI <- sum(length(LPI_coverage))/sum(length(LPI_mammals$Species))
+
+# count number of species in LPI by family
+LPI_summary <- LPI_coverage %>% 
+  group_by(Family) %>% 
+  summarise(n = n())
+
+LPI_overall <- LPI_mammals %>% 
+  group_by(Family) %>% 
+  summarise(n = n())
+
+
+mean(LPI_overall$n)
+# mean number of each species in a family is 28.61
 
 ```
 
