@@ -19,17 +19,16 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r load packages, echo=FALSE}
 
-library(dplyr)
+library(dplyr) # data manipulation
 library(plyr)
-library(rredlist)
-library(stringr)
+library(rredlist) # extract data from IUCN Red List
+library(stringr) # dealing with changes to texts and strings
 library(tidyverse)
-library(remotes)
-library(devtools)
+library(remotes) # install github packages
+library(devtools) # install github packages
 library(traitdataform)
-library(traitdata)
-library(rlpi)
-library(stringr)
+library(traitdata) # get data from PANTHERIA
+library(rlpi) # calculate LPI lambdas
 
 ```
 
@@ -95,19 +94,39 @@ get_rli <- function(species_categories) {
 
 ```{r IUCN status and category, echo=TRUE}
 
-# Download red list categories for all species
-redlist_status <- do.call(rbind,lapply(spp,FUN=function(sp){rl_search(sp, key= apikey)$result}))
+# Get full list of species currently from IUCN from 09/09/2021
+mammals_IUCN_full <- as.data.frame(rl_comp_groups(group = 'mammals', key = apikey)$result)
 
-# Function to retrieve IUCN data
+# Remove subspecies - split structure and remove characters with more than three words
+mammals_IUCN_full <- test[sapply(strsplit(as.character(mammals_IUCN_full$scientific_name)," "),length) < 3,]
+
+# Identify missing species from IUCN and EDGE dataset
+missing <- mammals_IUCN_full[(setdiff(mammals_IUCN_full$taxonid, EDGE_mammals$RL.ID)),]
+
+# Remove NA column and rows - 17 non matching taxon ID - ask Rikki about these
+missing <- missing[!is.na(as.numeric(missing$taxonid)), ]
+
+taxonID <- mammals_IUCN_full$taxonid
+
+# Download red list categories for all species
+redlist_status <- do.call(rbind,lapply(taxonID,FUN=function(sp){rl_search(id = sp, key= apikey)$result}))
+
+# Selecting important columns for population status
+redlist_status <- redlist_status[c(1,2,7,13,15)]
+
+# Remove capitalization on FAMILIES
+redlist_status$family <- str_to_title(redlist_status$family)
+
+# Function to retrieve IUCN data - using ID as a proxy for dataframe
 
 retrieve_IUCN_data <- function(speciesList){
-  IUCN_status <- data.frame(TaxonID = character(), Order = character(), Species = character(), Status = character(), Trend = character(), stringsAsFactors=FALSE)
+  IUCN_status <- data.frame(TaxonID = character(), Family = character(), Species = character(), Status = character(), Trend = character(), stringsAsFactors=FALSE)
   
   for(sp in speciesList){
     UICN_search <- rl_search(id = sp, key = apikey) 
     if (length(UICN_search$result) == 0){
       IUCN_status_sp <- data.frame(TaxonID = sp,
-                                   Order = 'NA',
+                                   Family = 'NA',
                                    Species = 'NA', 
                                    Status = 'NA', 
                                    Trend = 'NA',
@@ -117,7 +136,7 @@ retrieve_IUCN_data <- function(speciesList){
     }
     else {
       IUCN_status_sp <- data.frame(TaxonID = UICN_search$result$taxonid, 
-                                   Order = UICN_search$result$order, 
+                                   Family = UICN_search$result$family, 
                                    Species = UICN_search$result$scientific_name, 
                                    Status = UICN_search$result$category, 
                                    Trend = UICN_search$result$population_trend,
@@ -135,7 +154,7 @@ IUCN_pop_data <- EDGE_mammals
 IUCN_pop_data <- IUCN_pop_data[complete.cases(IUCN_pop_data$RL.ID),]
 
 # Retrive data for all valid taxonID
-IUCN_pop_full <- retrieve_IUCN_data(IUCN_pop_data$RL.ID)
+IUCN_pop_full <- retrieve_IUCN_data(IUCN_pop_data$RL.ID[1:10])
 
 missing_sp <- IUCN_pop_data[IUCN_pop_data$RL.ID == "12557" | IUCN_pop_data$RL.ID == "6337 "| IUCN_pop_data$RL.ID == "6336 " | IUCN_pop_data$RL.ID == "12392 " | IUCN_pop_data$RL.ID == "13888 " | IUCN_pop_data$RL.ID == "2538" | IUCN_pop_data$RL.ID == "7915",]
 
@@ -301,10 +320,28 @@ API_list <- API_list[-c(310), ]
 # Retrieve IUCN population data for all mammals (fingers crossed it works)
 IUCN_population_data <- retrieve_IUCN_data(API_list)
 
+test <- as.data.frame(rl_comp_groups(group = 'mammals', key = apikey)$result)
 
-test <- rl_growth_forms(name = API_list, key = apikey)
+#trying to remove subspecies rows
+test <- test[sapply(strsplit(as.character(test$scientific_name)," "),length) < 3,]
 
-RLI_threats <- rl_threats(name = 'Cerdocyon thous', key = apikey)
+# Identify missing species
+missing <- test[(setdiff(test$taxonid, EDGE_mammals$RL.ID)),]
+
+missing <- missing[!is.na(as.numeric(missing$taxonid)), ]
+
+
+```
+
+```{r proportion of threats, echo=TRUE}
+
+t <- rl_threats(name = EDGE_mammals$Species[1:5], key = apikey)
+
+spp <- test$taxonid
+
+# Function to retrieve IUCN threat data - using ID as a proxy for dataframe
+# Download red list threats for all species
+redlist_threats <- do.call(rbind,lapply(seq_len(length(spp)),FUN=function(i){xi <- rl_threats(id = spp[i], key= apikey); if(length(xi$result)) {data.frame(species=spp[i],xi$result) }})) 
 
 ```
 
@@ -434,17 +471,25 @@ LPI_coverage <- LPI_mammals[!LPI_mammals$Family %in% EDGE_priority_lineages$Fami
 proption_LPI <- sum(length(LPI_coverage))/sum(length(LPI_mammals$Species))
 
 # count number of species in LPI by family
-LPI_summary <- LPI_coverage %>% 
+LPI_summary <- LPI_mammals %>% 
   group_by(Family) %>% 
-  summarise(n = n())
+  dplyr::summarise(n = length(unique((Binomial))))
 
-LPI_overall <- LPI_mammals %>% 
+# Find % of species of LPI in each Family
+
+LPI_richness <- left_join(EDGE_mammal_summary, LPI_summary, by = "Family")
+
+LPI_richness <- LPI_richness %>% 
   group_by(Family) %>% 
-  summarise(n = n())
+  mutate(lpi_richness = (n/richness)*100)
 
+# no of species over 50% richness: 26 families which have above 50% species coverage and an extra 10 which have above 33% coverage
+sum(LPI_richness$lpi_richness > 33, na.rm = TRUE)
 
-mean(LPI_overall$n)
-# mean number of each species in a family is 28.61
+# How many of those are EDGE lineages - there are 23 priority (19 which have more than 50%, and an extra 5 which have more than 33%) EDGE populations which have a coverage of both 33 and 50%
+LPI_coverage <- LPI_richness[!LPI_richness$Family %in% EDGE_priority_lineages$Family,]
+
+sum(LPI_coverage$lpi_richness > 33, na.rm = TRUE)
 
 ```
 
@@ -476,6 +521,11 @@ mammal_genlength <- Generation_length %>%
   summarise(Gen_length = mean(GenerationLength_d, na.rm = TRUE))
 
 # JOin to main dataset?
+
+
+```
+
+```{r combine data sources, echo=TRUE}
 
 
 ```
