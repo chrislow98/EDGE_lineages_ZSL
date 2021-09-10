@@ -26,7 +26,6 @@ library(stringr) # dealing with changes to texts and strings
 library(tidyverse)
 library(remotes) # install github packages
 library(devtools) # install github packages
-library(traitdataform)
 library(traitdata) # get data from PANTHERIA
 library(rlpi) # calculate LPI lambdas
 
@@ -42,6 +41,8 @@ EDGE_mammals <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofEx
 mammals_old_RLI <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Mammal_RLI.csv")
 
 IUCN_pop_trend <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/pop_trend_IUCN.csv")
+
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/IUCN_api_data.RData")
 
 ```
 
@@ -117,46 +118,43 @@ redlist_status <- redlist_status[c(1,2,7,13,15)]
 # Remove capitalization on FAMILIES
 redlist_status$family <- str_to_title(redlist_status$family)
 
-# Function to retrieve IUCN data - using ID as a proxy for dataframe
+######################## Calculating change in IUCN RL status - RAW DOWNLOADED DATA
+# loading in IUCN dataset
+# look at data structure
+str(redlist_status)
 
-retrieve_IUCN_data <- function(speciesList){
-  IUCN_status <- data.frame(TaxonID = character(), Family = character(), Species = character(), Status = character(), Trend = character(), stringsAsFactors=FALSE)
-  
-  for(sp in speciesList){
-    UICN_search <- rl_search(id = sp, key = apikey) 
-    if (length(UICN_search$result) == 0){
-      IUCN_status_sp <- data.frame(TaxonID = sp,
-                                   Family = 'NA',
-                                   Species = 'NA', 
-                                   Status = 'NA', 
-                                   Trend = 'NA',
-                                   stringsAsFactors=FALSE)
-      IUCN_status <- rbind(IUCN_status, IUCN_status_sp)
-      cat(sp,'----- CHECK\n') 
-    }
-    else {
-      IUCN_status_sp <- data.frame(TaxonID = UICN_search$result$taxonid, 
-                                   Family = UICN_search$result$family, 
-                                   Species = UICN_search$result$scientific_name, 
-                                   Status = UICN_search$result$category, 
-                                   Trend = UICN_search$result$population_trend,
-                                   stringsAsFactors=FALSE)
-      IUCN_status <- rbind(IUCN_status, IUCN_status_sp)
-    }
-  }
-  return(IUCN_status)
-}
 
+# Assign NA values to unknown RL populations
+redlist_status$population_trend[redlist_status$population_trend == "Increasing"] <- 2
+redlist_status$population_trend[redlist_status$population_trend == "Stable"] <- 1
+redlist_status$population_trend[redlist_status$population_trend == "Decreasing"] <- 0
+redlist_status$population_trend[redlist_status$population_trend == "Unknown"] <- "NA"
+
+# Join EDGE mammal dataframe with IUCN data extracted dataframe
+redlist_status <- EDGE_mammals %>% 
+  left_join(redlist_status, by = c("RL.ID" = "taxonid"))
+
+t <- redlist_status %>% 
+  dplyr::select(Family, population_trend) %>% 
+  dplyr::group_by(Family) %>% 
+  dplyr::summarise(Richness = length(Family), 
+                   Trend_dec = sum(population_trend == 0, na.rm = TRUE),
+                   Prop_dec = Trend_dec/length(population_trend[!is.na(population_trend)]),
+                   Trend_inc = sum(population_trend == 2, na.rm = TRUE),
+                   Prop_inc = Trend_inc/length(population_trend[!is.na(population_trend)]),
+                   Trend_stab = sum(population_trend == 1, na.rm = TRUE),
+                   Prop_stab = Trend_stab/length(population_trend[!is.na(population_trend)]),
+                   Unknown = sum(is.na(population_trend)))
+
+# ASK RIKKI ABOUT NA PROBLEM
+
+######################################### SCRAP CODE- remove after if not using
 # Apply function to a set of species
 IUCN_pop_data <- EDGE_mammals
 
 # subset removing NA's
 IUCN_pop_data <- IUCN_pop_data[complete.cases(IUCN_pop_data$RL.ID),]
 
-# Retrive data for all valid taxonID
-IUCN_pop_full <- retrieve_IUCN_data(IUCN_pop_data$RL.ID[1:10])
-
-missing_sp <- IUCN_pop_data[IUCN_pop_data$RL.ID == "12557" | IUCN_pop_data$RL.ID == "6337 "| IUCN_pop_data$RL.ID == "6336 " | IUCN_pop_data$RL.ID == "12392 " | IUCN_pop_data$RL.ID == "13888 " | IUCN_pop_data$RL.ID == "2538" | IUCN_pop_data$RL.ID == "7915",]
 
 # subset all the rows which do contain NA's
 IUCN_NAs <- EDGE_mammals[is.na(EDGE_mammals$RL.ID),]
@@ -207,32 +205,6 @@ test1 <- retrieve_IUCN_data(test$RL.ID)
 same_sp <- as.data.frame(intersect(EDGE_mammals$Species, API_list$RLI_sp))
 
 diff_sp <- as.data.frame(setdiff(EDGE_mammals$Species, API_list$RLI_sp))
-
-######################## Calculating change in IUCN RL status - DOWNLOADED DATA
-# loading in IUCN dataset
-
-# find out how many species are different by Red List ID - 8 species
-length(setdiff(IUCN_pop_trend$internalTaxonId, EDGE_mammals$RL.ID))
-
-# Assign NA values to unknown RL populations
-IUCN_pop_trend$populationTrend[IUCN_pop_trend$populationTrend == "Increasing"] <- 2
-IUCN_pop_trend$populationTrend[IUCN_pop_trend$populationTrend == "Stable"] <- 1
-IUCN_pop_trend$populationTrend[IUCN_pop_trend$populationTrend == "Decreasing"] <- 0
-IUCN_pop_trend$populationTrend[IUCN_pop_trend$populationTrend == "Unknown"] <- "NA"
-
-IUCN_pop_trend <- EDGE_mammals %>% 
-  dplyr::select(RL.ID, Family, Species) %>% 
-  left_join(IUCN_pop_trend, by = c("RL.ID" = "internalTaxonId"))
-
-test <- IUCN_pop_trend %>% 
-  dplyr::select(Family, populationTrend) %>% 
-  dplyr::group_by(Family) %>% 
-  dplyr::summarise(Trend_dec = sum(populationTrend == 0, na.rm = TRUE),
-                   Prop_dec = Trend_dec/length(populationTrend[!is.na(populationTrend)]),
-                   Trend_inc = sum(populationTrend == 2, na.rm = TRUE),
-                   Prop_inc = Trend_inc/length(populationTrend[!is.na(populationTrend)]),
-                   Trend_stab = sum(populationTrend == 1, na.rm = TRUE),
-                   Prop_stab = Trend_stab/length(populationTrend[!is.na(populationTrend)]))
 
 
 ######################## change in IUCN RL status since 2008 - DOWNLOADED DATA
@@ -335,13 +307,30 @@ missing <- missing[!is.na(as.numeric(missing$taxonid)), ]
 
 ```{r proportion of threats, echo=TRUE}
 
-t <- rl_threats(name = EDGE_mammals$Species[1:5], key = apikey)
-
-spp <- test$taxonid
+# list taxonid from IUCN data to extract in lapply function
+spp <- mammals_IUCN_full$taxonid
 
 # Function to retrieve IUCN threat data - using ID as a proxy for dataframe
 # Download red list threats for all species
 redlist_threats <- do.call(rbind,lapply(seq_len(length(spp)),FUN=function(i){xi <- rl_threats(id = spp[i], key= apikey); if(length(xi$result)) {data.frame(species=spp[i],xi$result) }})) 
+
+save(redlist_threats, mammals_IUCN_full, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/IUCN_api_data.RData")
+
+```
+
+# Downloading conservation measures from IUCN 
+```{r conservation measures, echo=TRUE}
+
+t <- rl_measures(name = 'Cerdocyon thous', key = apikey)
+
+
+# list taxonid from IUCN data to extract in lapply function
+spp <- mammals_IUCN_full$taxonid
+
+# Function to retrieve IUCN threat data - using ID as a proxy for dataframe
+# Download red list threats for all species
+redlist_threats <- do.call(rbind,lapply(seq_len(length(spp)),FUN=function(i){xi <- rl_threats(id = spp[i], key= apikey); if(length(xi$result)) {data.frame(species=spp[i],xi$result) }})) 
+
 
 ```
 
