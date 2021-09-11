@@ -76,9 +76,9 @@ EDGE_mammals$Species <- gsub(' ', '_', EDGE_mammals$Species)
 
 # translate RL categories into binary objects
 
-EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "DD"] <- 2
-EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "LC"] <- 0
-EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "NT"] <- 0
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "DD"] <- 3
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "LC"] <- 2
+EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "NT"] <- 2
 EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "EW"] <- 0
 EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "VU"] <- 1
 EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "EN"] <- 1
@@ -103,10 +103,12 @@ EDGE_mammal_summary <- EDGE_mammals %>%
             
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
-            data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
+            data_sufficient_sp = sum(RL_binary < 3, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!) 
             
             unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
-            assessed_threat_prop = no_threated/data_sufficient_sp) #calculate proportion data sufficient and threated species 
+            assessed_threat_prop = no_threated/data_sufficient_sp, #calculate proportion data sufficient and threated species 
+            no_LC_NT = sum(RL_binary == "2", na.rm = TRUE), # sum no of LC and NT spp
+            LC_NT_prop = no_LC_NT/data_sufficient_sp) 
 
 # order species based on richness values from lowest to highest
 EDGE_mammal_summary <- EDGE_mammal_summary[order(EDGE_mammal_summary$assessed_threat_prop, decreasing = TRUE),]
@@ -387,6 +389,8 @@ for(i in 1:NROW(ex_PD_full)){
  
  
 }
+
+as.vector(ifelse())
 
 
 # Apply function to upham dataset
