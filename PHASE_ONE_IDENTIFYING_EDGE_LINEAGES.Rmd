@@ -91,6 +91,15 @@ EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "CR"] <- 1
 
 EDGE_mammals <- EDGE_mammals[order(EDGE_mammals$Family),]
 
+# insert current status of Elaphants result into EDGE mammal dataset- based off latest IUCN assessment
+carnivore.df <- EDGE_mammals[c("289"),]
+
+# insert taxonid
+EDGE_mammals[c("289"), 1] <- 181007989
+
+# insert latest IUCN assessment
+EDGE_mammals[c("289"), 4] <- "CR"
+
 # Pipe to create new summary dataframe for mammals
 
 EDGE_mammal_summary <- EDGE_mammals %>% 
