@@ -125,7 +125,7 @@ redlist_status$family <- str_to_title(redlist_status$family)
 # look at data structure
 str(redlist_status)
 
-# Remove DD species from RL analysis
+# Remove DD species from RL analysis- 5109 species
 redlist_status <- subset(redlist_status, category!="DD")
 
 # Assign NA values to unknown RL populations
@@ -224,10 +224,6 @@ IUCN_RL_status_combined$RL.cat <- as.numeric(IUCN_RL_status_combined$RL.cat)
 # subtract columns to find change in RL
 IUCN_RL_status_combined$RL_change <- (IUCN_RL_status_combined$X2008.RL.cat - IUCN_RL_status_combined$RL.cat)
 
-#subset important columns in dataframe
-IUCN_RL_status_combined <- subset(IUCN_RL_status_combined, select=c(taxonid,scientific_name, category, family, Family, X2008.RL.cat, RL_change))
-
-
 # getting the proportion of species, uplisted, downlisted, no change
 
 RL_change_df <- IUCN_RL_status_combined %>% 
@@ -258,7 +254,6 @@ test <- test[sapply(strsplit(as.character(test$scientific_name)," "),length) < 3
 missing <- test[(setdiff(test$taxonid, EDGE_mammals$RL.ID)),]
 
 missing <- missing[!is.na(as.numeric(missing$taxonid)), ]
-
 
 ```
 
