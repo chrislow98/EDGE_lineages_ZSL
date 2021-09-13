@@ -239,7 +239,7 @@ RL_change_df <- IUCN_RL_status_combined %>%
 
 IUCN_RL_status_combined <- IUCN_RL_status_combined[order(IUCN_RL_status_combined$Family, decreasing = FALSE),]
 
-save(RL_change_df, redlist_status, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
+save(mammals_IUCN_full, IUCN_RL_status_combined, RL_change_df, redlist_status, redlist_status_summary, EDGE_mammals, EDGE_mammal_summary, redlist_threats, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
 
 #################### SCRAP CODE
 # code which counts characters instead of having to convert them xx
@@ -269,8 +269,20 @@ redlist_threats <- do.call(rbind,lapply(seq_len(length(spp)),FUN=function(i){xi 
 # Get names from IUCN mammal dataset
 names <- mammals_IUCN_full[c(1:2)]
 
-# join up threat dataframe with names
-t <- left_join(names, redlist_threats, by = c("taxonid" = "species"))
+# subset dataframe to only look at ongoing threats 
+redlist_threats <- subset(redlist_threats, timing == "Ongoing")
+
+# Add species names based off taxon ID
+redlist_threats <- inner_join(redlist_threats, names, by = c('species' = 'taxonid'))
+
+# Put species name first
+redlist_threats <- redlist_threats[,c(9, 1:8)]
+
+# Select columns 1-4
+redlist_threats <- redlist_threats[c(1:4)]
+
+# Remove IUCN sub-sub threat categories
+redlist_threats$new_code <- ifelse(nchar(redlist_threats$code) > 3, paste0(strtrim(redlist_threats$code, 3), ' '), redlist_threats$code)
 
 save(redlist_threats, mammals_IUCN_full, redlist_status, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/IUCN_api_data.RData")
 
