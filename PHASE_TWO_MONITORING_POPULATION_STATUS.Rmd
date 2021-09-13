@@ -44,7 +44,7 @@ IUCN_pop_trend <- read.csv("C:/Users/Student/Zoological Society of London/EDGEof
 
 RLI_EDGE_names_2008 <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RLI_data_with_EDGE_names.csv")
 
-load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/IUCN_api_data.RData")
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
 
 ```
 
@@ -147,8 +147,6 @@ redlist_status_summary <- redlist_status %>%
                    Prop_stab = Trend_stab/length(population_trend[!is.na(population_trend)]),
                    Unknown = sum(is.na(population_trend)),
                    Prop_unknown = Unknown/length(is.na(population_trend)))
-
-# ASK RIKKI ABOUT NA PROBLEM
 
 ######################################### SCRAP CODE- remove after if not using
 # subset removing NA's
@@ -275,16 +273,44 @@ redlist_threats <- subset(redlist_threats, timing == "Ongoing")
 # Add species names based off taxon ID
 redlist_threats <- inner_join(redlist_threats, names, by = c('species' = 'taxonid'))
 
-# Put species name first
-redlist_threats <- redlist_threats[,c(9, 1:8)]
+# add family name based off IUCN taxon ID - requires redlist_status (FULL) dataset
+names(redlist_threats)[2] <- "taxonid"
+
+# Add family names based off taxonid
+redlist_threats <- merge(redlist_status_full, redlist_threats, by = "taxonid")
 
 # Select columns 1-4
-redlist_threats <- redlist_threats[c(1:4)]
+redlist_threats <- redlist_threats[c(1:3, 7:8)]
 
 # Remove IUCN sub-sub threat categories
-redlist_threats$new_code <- ifelse(nchar(redlist_threats$code) > 3, paste0(strtrim(redlist_threats$code, 3), ' '), redlist_threats$code)
+#redlist_threats$new_code <- ifelse(nchar(redlist_threats$code) > 3, paste0(strtrim(redlist_threats$code, 3), ' '), redlist_threats$code) 
 
-save(redlist_threats, mammals_IUCN_full, redlist_status, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/IUCN_api_data.RData")
+# subset top utilised threats for mammals 
+redlist_threats <- redlist_threats[which(redlist_threats$code == "2.1" | redlist_threats$code == "5.3" | redlist_threats$code == "5.1" | redlist_threats$code == "1.1" | redlist_threats$code == "2.3" | redlist_threats$code == "8.1") , ]
+
+# Get proportions of threatened species for each family
+# Convert code into numeric
+redlist_threats$code <- as.numeric(redlist_threats$code)
+
+redlist_threat_summary <- redlist_threats %>% 
+  select(scientific_name.x, family, code) %>% 
+  group_by(family) %>% 
+  dplyr::summarise(richness = length(unique(scientific_name.x)),
+                   no_1_1 = sum(code == 1.1),
+                   prop_1_1 = no_1_1/richness,
+                   no_2_2 = sum(code == 2.1),
+                   prop_2_2 = no_2_2/richness,
+                   no_2_3 = sum(code == 2.3),
+                   prop_2_3 = no_2_3/richness,
+                   no_5_1 = sum(code == 5.1),
+                   prop_5_1 = no_5_1/richness,
+                   no_5_3 = sum(code == 5.3),
+                   prop_5_3 = no_5_3/richness,
+                   no_8_1 = sum(code == 8.1),
+                   prop_8_1 = no_8_1/richness)
+
+
+save(mammals_IUCN_full, IUCN_RL_status_combined, RL_change_df, redlist_status, redlist_status_summary, EDGE_mammals, EDGE_mammal_summary, redlist_threats_full, redlist_threats, redlist_threat_summary, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
 
 ```
 
@@ -300,53 +326,6 @@ spp <- mammals_IUCN_full$taxonid[1:30]
 # Function to retrieve IUCN threat data - using ID as a proxy for dataframe
 # Download red list threats for all species
 redlist_measures <- do.call(rbind,lapply(seq_len(length(spp)),FUN=function(i){xi <- rl_measures(id = spp[i], key= apikey); if(length(xi$result)) {data.frame(species=spp[i],xi$result) }})) 
-
-
-```
-
-
-```{r manipulating dataset, echo=FALSE}
-
-# load in Red List data from API key
-API_mammals <- rl_comp_groups(group = 'mammals', key = apikey, parse = TRUE)
-
-API_list <- as.data.frame(API_mammals$result$scientific_name)
-
-colnames(API_list) <- c("RLI_sp")
-
-API_list <- c(API_list$RLI_sp[1:20])
-
-test <- rl_growth_forms(name = API_list, key = apikey)
-
-RLI_threats <- rl_threats(name = 'Cerdocyon thous', key = apikey)
-
-# Convert the first letter of every word of a string to Uppercase and the rest of the letters are converted to lower case
-mammals_old_RLI$Family <- str_to_title(mammals_old_RLI$Family)
-
-# Input "_" between species names
-mammals_old_RLI$Name <- gsub(' ', '_', mammals_old_RLI$Name)
-
-# Change population decrease or increase into binary values
-mammals_old_RLI$Up.down[mammals_old_RLI$Up.down == "up"] <- 1 
-mammals_old_RLI$Up.down[mammals_old_RLI$Up.down == "down"] <- 0 
-
-# Get RLI for mammal families
-
-RLI_summary <- mammals_old_RLI %>% 
-  dplyr::select(Family, X1996.RL.cat, X2008.RL.cat, Up.down) %>% # important when specifiying varibales to just use variable names in the rest of the pipeline
-  #filter(mammals_old_RLI) %>% 
-  group_by(Family) %>% 
-  dplyr::summarise(RLI_1996 = get_rli(X1996.RL.cat),
-            RLI_2008 = get_rli(X2008.RL.cat),
-            pop_trend_inc = sum(Up.down == "1", na.rm = TRUE),
-            pop_trend_dec = sum(Up.down == "0", na.rm = TRUE)) 
-
-
-
-# Red list random sample
-RLI_sample <- mammals_old_RLI[sample(nrow(mammals_old_RLI), 200), ]
-  
-get_rli(RLI_sample$X1996.RL.cat)
 
 
 ```
