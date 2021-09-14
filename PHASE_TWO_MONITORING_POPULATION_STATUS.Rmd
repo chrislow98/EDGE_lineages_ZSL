@@ -331,10 +331,12 @@ key_con_terms <- extract_terms(text=conservation_actions[, "conservationActions"
 # trying to highlight key words from conservation action
 x <- conservation_actions[grepl("protected areas", conservation_actions[["conservationActions"]]) | grepl("nature reserves", conservation_actions[["conservationActions"]]) | grepl("forest reserve", conservation_actions[["conservationActions"]]) | grepl("national parks", conservation_actions[["conservationActions"]]) | grepl("species occurs", conservation_actions[["conservationActions"]]), ] 
 
+x <- conservation_actions[grepl("occurs in protected area", conservation_actions[["conservationActions"]]) | grepl("found in protected area", conservation_actions[["conservationActions"]]) | grepl("occurs in several protected areas", conservation_actions[["conservationActions"]]) | grepl("occurs in at least one protected area", conservation_actions[["conservationActions"]]),]
+
 # select important columns
 
 # convert conservation actions into binary
-conservation_actions$con_action_binary[conservation_actions$conservationActions == "protected areas"] <- "1"
+conservation_actions$con_action_binary[conservation_actions$conservationActions == "protected areas"] <- 1
 trait$EUFG[trait$Species == "Rutilus_rutilus"] <- "Fw"
 trait$EUFG[trait$Species == "Abramis_brama"] <- "Fw"
 
