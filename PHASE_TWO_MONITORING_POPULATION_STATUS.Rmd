@@ -28,6 +28,7 @@ library(remotes) # install github packages
 library(devtools) # install github packages
 library(traitdata) # get data from PANTHERIA
 library(rlpi) # calculate LPI lambdas
+library(litserchr) # pull out conservation measures from text
 
 ```
 
@@ -292,6 +293,7 @@ redlist_threats <- redlist_threats[which(redlist_threats$code == "2.1" | redlist
 # Convert code into numeric
 redlist_threats$code <- as.numeric(redlist_threats$code)
 
+# produce summary table of proportion of species threatened by each threat
 redlist_threat_summary <- redlist_threats %>% 
   select(scientific_name.x, family, code) %>% 
   group_by(family) %>% 
@@ -310,15 +312,31 @@ redlist_threat_summary <- redlist_threats %>%
                    prop_8_1 = no_8_1/richness)
 
 
-save(mammals_IUCN_full, IUCN_RL_status_combined, RL_change_df, redlist_status, redlist_status_summary, EDGE_mammals, EDGE_mammal_summary, redlist_threats_full, redlist_threats, redlist_threat_summary, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
+save(mammals_IUCN_full, IUCN_RL_status_combined, RL_change_df, redlist_status, redlist_status_summary, EDGE_mammals, EDGE_mammal_summary, redlist_threats_full, redlist_threats, redlist_threat_summary, mammals_IUCN_full, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
 
 ```
 
 # Downloading conservation measures from IUCN 
 ```{r conservation measures, echo=TRUE}
 
-t <- rl_measures(name = 'Cerdocyon thous', key = apikey)
+# Load packages needed
+require(litsearchr)
 
+# load in conservation action data (text)
+conservation_actions <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Conservation_action/conservation_actions.csv")
+
+# extract key conservation action terms
+key_con_terms <- extract_terms(text=conservation_actions[, "conservationActions"], method="fakerake", min_freq=100, min_n=2, max_n = 9)
+
+# trying to highlight key words from conservation action
+x <- conservation_actions[grepl("protected areas", conservation_actions[["conservationActions"]]) | grepl("nature reserves", conservation_actions[["conservationActions"]]) | grepl("forest reserve", conservation_actions[["conservationActions"]]) | grepl("national parks", conservation_actions[["conservationActions"]]) | grepl("species occurs", conservation_actions[["conservationActions"]]), ] 
+
+# select important columns
+
+# convert conservation actions into binary
+conservation_actions$con_action_binary[conservation_actions$conservationActions == "protected areas"] <- "1"
+trait$EUFG[trait$Species == "Rutilus_rutilus"] <- "Fw"
+trait$EUFG[trait$Species == "Abramis_brama"] <- "Fw"
 
 # list taxonid from IUCN data to extract in lapply function
 spp <- mammals_IUCN_full$taxonid[1:30]
@@ -326,6 +344,8 @@ spp <- mammals_IUCN_full$taxonid[1:30]
 # Function to retrieve IUCN threat data - using ID as a proxy for dataframe
 # Download red list threats for all species
 redlist_measures <- do.call(rbind,lapply(seq_len(length(spp)),FUN=function(i){xi <- rl_measures(id = spp[i], key= apikey); if(length(xi$result)) {data.frame(species=spp[i],xi$result) }})) 
+
+
 
 
 ```
