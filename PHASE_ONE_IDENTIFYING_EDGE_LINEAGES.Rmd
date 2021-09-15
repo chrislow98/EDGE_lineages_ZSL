@@ -22,7 +22,7 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r setup, echo=FASLE}
 
-library(dplyr)
+library(dplyr) # data manipulation
 library(tidyverse)
 library(stringr)
 library(ggplot2)
@@ -31,7 +31,7 @@ library(caper)
 library(phylotools)
 library(phangorn)
 library(geiger)
-library(phylobase)
+library(phylobase) # sum expected PD branches
 library(performance)
 
 ```
@@ -371,16 +371,6 @@ for (j in 2:length(mammal.trees.full)){
   }
 }
 
-family.iter <- data.frame(Family = data_out$Family, no.over.median = 0)
-for(i in 1:100){
-  med.score <- median(data_out[,(i+1)])
-  for(j in 1:NROW(family.iter)){
-    if(data_out[data_out$Family == family.iter$Family[j],(i+1)] > med.score){
-      family.iter$no.over.median[j] <- family.iter$no.over.median[j]+1
-    }
-  }
-}
-
 # Calculate median, IQR and range for each family from 100 iterations
 
 save(data_out, file = "100_family_EDGE_scores.RData")
@@ -496,47 +486,17 @@ for(i in 1:NROW(ex_PD_full)){
 }
 
 # Assess number of times each family is above the median EDGE score - IMPORTANT EDGE LINEAGE CRITERIA
-# Create matrix for data to be stored
+# Create dataframe for iterations to be stored 
 
-family.iter <- data.frame(Family = data_out$Family, no.over.median = 0)
-for(i in 1:100){
-  med.score <- median(data_out[,(i+1)])
-  for(j in 1:NROW(family.iter)){
-    if(data_out[data_out$Family == family.iter$Family[j],(i+1)] > med.score){
-      family.iter$no.over.median[j] <- family.iter$no.over.median[j]+1
+family.iter <- data.frame(Family = data_out$Family, no.over.median = 0) # create dataframe to store ePD iterations
+for(i in 1:100){ # for 1 of 100 trees
+  med.score <- median(data_out[,(i+1)]) # calculate each ePD loss score for each tree (i + 1) bit means it will go on to next tree column
+  for(j in 1:NROW(family.iter)){ # for 1 in each nrow of family
+    if(data_out[data_out$Family == family.iter$Family[j],(i+1)] > med.score){ # if family of tree i is above median give it a one
+      family.iter$no.over.median[j] <- family.iter$no.over.median[j]+1 # add columns to the end
     }
   }
 }
-
-# Create dataframe to store exPD iterations
-above_med_EDGE_score <- data.frame(matrix( , ncol = 2, nrow = length(EDGE_mammal_summary$Family)))
-
-# Change column names
-colnames(above_med_EDGE_score)<-c("Family", "No_above_median")
-
-# Put vector of family names in dataset 
-above_med_EDGE_score[,1] <- EDGE_mammal_summary$Family 
-
-# set i to 1
-n <- 1
-
-for (n in 1:NCOL(data_out)){
-  score[n] <- median(data_out[,(i+j)])
-    
-    ifelse(as.vector(as.numeric(data_out[which(data_out$Family == above_med_EDGE_score$Family[n]), c(2:NCOL(data_out))])), data_out$Family[n] < median(NCOL(data_out[n])), 1, 0) 
-  
-  all_vals[n] <- sum(score[,n])
-  
-  above_med_EDGE_score$No_above_median <- all_vals[n]
-}
-
-
-
-ifelse(as.vector(as.numeric(data_out[which(data_out$Family == above_med_EDGE_score$Family[i]), c(2:NCOL(data_out))])) > median(data_out[,i]), 1, 0)
-
-for (i in 1:NROW(above_med_EDGE_score)){
- above_edge_score[i] <- ifelse(data_out[which(data_out$Family == above_med_EDGE_score$Family[i]), < median(NCOL[,2]),1, 0])
-
 
 # merge RLI and ePD datasets
 mammals_pd_merged <- merge(EDGE_mammal_summary, ex_PD_full)
