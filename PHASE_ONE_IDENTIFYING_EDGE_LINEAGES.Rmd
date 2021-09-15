@@ -312,7 +312,7 @@ EDGE_family <- EDGE_mammals %>%
   dplyr::select(Family, Species)
 
 # Create vector of family names
-names <- c(unique(EDGE_family$Family))
+names <- c(unique(EDGE_mammals$Family))
 
 # split species by family- output is a list
 EDGE_family <- base::split(EDGE_family, f = EDGE_family$Family)
@@ -320,7 +320,7 @@ EDGE_family <- base::split(EDGE_family, f = EDGE_family$Family)
 # Loop to extract ePD over a 100 iterations of phylogenetic trees
 
 # Creating a dataframe to store exPD values and for exPD UPHAM
-ex_PD_full <- data.frame(matrix( , ncol = 11, nrow = length(EDGE_family)))
+ex_PD_full <- data.frame(matrix( , ncol = 11, nrow = length(unique(EDGE_mammals$Family))))
 
 # Change column names
 colnames(ex_PD_full)<-c("Family", "Median.exPD", "Lwr.Quantile", "Uppr.Quantile", "Lwr.Range", "Uppr.Range", 
@@ -486,6 +486,7 @@ for(i in 1:NROW(ex_PD_full)){
 }
 
 # Assess number of times each family is above the median EDGE score - IMPORTANT EDGE LINEAGE CRITERIA
+
 # Create dataframe for iterations to be stored 
 
 family.iter <- data.frame(Family = data_out$Family, no.over.median = 0) # create dataframe to store ePD iterations
@@ -498,14 +499,32 @@ for(i in 1:100){ # for 1 of 100 trees
   }
 }
 
+# Cut down ex_PD_full dataframe as don't need upham scores
+ex_PD_full <- ex_PD_full[c(1:6)]
+
+# merge with above median EDGE scores dataframe
+ex_PD_full <- merge(ex_PD_full, family.iter, by = "Family")
+
 # merge RLI and ePD datasets
 mammals_pd_merged <- merge(EDGE_mammal_summary, ex_PD_full)
 
 # Order by proportioned of threatened species
-mammals_pd_merged <- mammals_pd_merged[order(mammals_pd_merged$assessed_threat_prop, decreasing = TRUE),]
+mammals_pd_merged <- mammals_pd_merged[order(mammals_pd_merged$no.over.median, decreasing = TRUE),]
 
 # Subset data for lineages which are only above median ePD score
-EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$Median.exPD > median(mammals_pd_merged$Median.exPD)),]
+EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$no.over.median > 94),]
+
+EDGE_priority_lineages <- EDGE_priority_lineages[which(EDGE_priority_lineages$unassessed_prop < 0.10),] 
+
+# list these families as EDGE priorities
+EDGE_priority_lineages$EDGE_priority <- "Yes"
+
+# define what type of families these lineages are
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop == 0 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
+
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
+
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 10 & EDGE_priority_lineages$assessed_threat_prop < 1]<- "Watchlist lineage"
 
 # Either save or load in data
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/ALL_mammal_phylogeny_data.RData")
