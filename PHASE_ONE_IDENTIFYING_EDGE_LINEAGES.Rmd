@@ -91,7 +91,7 @@ EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "CR"] <- 1
 
 EDGE_mammals <- EDGE_mammals[order(EDGE_mammals$Family),]
 
-# insert current status of Elaphants result into EDGE mammal dataset- based off latest IUCN assessment
+# insert current status of Elephants result into EDGE mammal dataset- based off latest IUCN assessment
 carnivore.df <- EDGE_mammals[c("289"),]
 
 # insert taxonid
@@ -107,15 +107,14 @@ EDGE_mammal_summary <- EDGE_mammals %>%
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
-            # Get mean of median EDGE score for each family
-            EDGE_mean = mean(EDGE.median, na.rm = TRUE),
             
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
-            data_sufficient_sp = sum(RL_binary < 3, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!) 
-            
             unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
+            data_sufficient_sp = sum(RL_binary < 3, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!) 
             assessed_threat_prop = no_threated/data_sufficient_sp, #calculate proportion data sufficient and threated species 
+            no_DD_NE_spp = richness - data_sufficient_sp, # get the number of data-defficient and non-assessed species
+            no_DD_NE_prop = no_DD_NE_spp/richness, # get proportion of DD and NE species
             no_LC_NT = sum(RL_binary == "2", na.rm = TRUE), # sum no of LC and NT spp
             LC_NT_prop = no_LC_NT/data_sufficient_sp) 
 
@@ -141,9 +140,9 @@ EDGE_birds$Species <- gsub(' ', '_', EDGE_birds$Species)
 
 # translate RL categories into binary objects
 
-EDGE_birds$RL_binary[EDGE_birds$RL.cat == "DD"] <- 2
-EDGE_birds$RL_binary[EDGE_birds$RL.cat == "LC"] <- 0
-EDGE_birds$RL_binary[EDGE_birds$RL.cat == "NT"] <- 0
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "DD"] <- 3
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "LC"] <- 2
+EDGE_birds$RL_binary[EDGE_birds$RL.cat == "NT"] <- 2
 EDGE_birds$RL_binary[EDGE_birds$RL.cat == "EW"] <- 0
 EDGE_birds$RL_binary[EDGE_birds$RL.cat == "VU"] <- 1
 EDGE_birds$RL_binary[EDGE_birds$RL.cat == "EN"] <- 1
@@ -163,12 +162,16 @@ EDGE_bird_summary <- EDGE_birds %>%
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
-            data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
-            
-           unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
-            assessed_threat_prop = no_threated/data_sufficient_sp) #calculate proportion data sufficient and threated species 
+            unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
+            data_sufficient_sp = sum(RL_binary < 3, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!) 
+            assessed_threat_prop = no_threated/data_sufficient_sp, #calculate proportion data sufficient and threated species 
+            no_DD_NE_spp = richness - data_sufficient_sp, # get the number of data-defficient and non-assessed species
+            no_DD_NE_prop = no_DD_NE_spp/richness, # get proportion of DD and NE species
+            no_LC_NT = sum(RL_binary == "2", na.rm = TRUE), # sum no of LC and NT spp
+            LC_NT_prop = no_LC_NT/data_sufficient_sp) 
 
 # order species based on richness values from lowest to highest
 EDGE_bird_summary <- EDGE_bird_summary[order(EDGE_bird_summary$assessed_threat_prop, decreasing = TRUE),]
@@ -189,9 +192,9 @@ EDGE_amphibians$Species <- gsub(' ', '_', EDGE_amphibians$Species)
 
 # translate RL categories into binary objects
 
-EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "DD"] <- 2
-EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "LC"] <- 0
-EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "NT"] <- 0
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "DD"] <- 3
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "LC"] <- 2
+EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "NT"] <- 2
 EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "EW"] <- 0
 EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "VU"] <- 1
 EDGE_amphibians$RL_binary[EDGE_amphibians$RL.cat == "EN"] <- 1
@@ -211,12 +214,16 @@ EDGE_amphibian_summary <- EDGE_amphibians %>%
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
-            data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
-          
-           unassessed_prop = no_unassessed/richness*100, # calculate the proportion of unassessed and threatened species
-            assessed_threat_prop = no_threated/data_sufficient_sp*100) #calculate proportion data sufficient and threated species 
+            unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
+            data_sufficient_sp = sum(RL_binary < 3, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!) 
+            assessed_threat_prop = no_threated/data_sufficient_sp, #calculate proportion data sufficient and threated species 
+            no_DD_NE_spp = richness - data_sufficient_sp, # get the number of data-defficient and non-assessed species
+            no_DD_NE_prop = no_DD_NE_spp/richness, # get proportion of DD and NE species
+            no_LC_NT = sum(RL_binary == "2", na.rm = TRUE), # sum no of LC and NT spp
+            LC_NT_prop = no_LC_NT/data_sufficient_sp) 
 
 # order species based on richness values from lowest to highest
 EDGE_amphibian_summary <- EDGE_amphibian_summary[order(EDGE_amphibian_summary$assessed_threat_prop, decreasing = TRUE),]
@@ -238,9 +245,9 @@ EDGE_reptiles$Species <- gsub(' ', '_', EDGE_reptiles$Species)
 
 # translate RL categories into binary objects
 
-EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "DD"] <- 2
-EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "LC"] <- 0
-EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "NT"] <- 0
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "DD"] <- 3
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "LC"] <- 2
+EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "NT"] <- 2
 EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "EW"] <- 0
 EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "VU"] <- 1
 EDGE_reptiles$RL_binary[EDGE_reptiles$RL.cat == "EN"] <- 1
@@ -260,12 +267,16 @@ EDGE_reptile_summary <- EDGE_reptiles %>%
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
-            data_sufficient_sp = sum(RL_binary < 2, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!)
-
-           unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
-            assessed_threat_prop = no_threated/data_sufficient_sp) #calculate proportion data sufficient and threated species 
+            unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
+            data_sufficient_sp = sum(RL_binary < 3, na.rm = TRUE), # sum binary values less than 2 (to exclude DD species!) 
+            assessed_threat_prop = no_threated/data_sufficient_sp, #calculate proportion data sufficient and threated species 
+            no_DD_NE_spp = richness - data_sufficient_sp, # get the number of data-defficient and non-assessed species
+            no_DD_NE_prop = no_DD_NE_spp/richness, # get proportion of DD and NE species
+            no_LC_NT = sum(RL_binary == "2", na.rm = TRUE), # sum no of LC and NT spp
+            LC_NT_prop = no_LC_NT/data_sufficient_sp) 
 
 # order species based on richness values from lowest to highest
 EDGE_reptile_summary <- EDGE_reptile_summary[order(EDGE_reptile_summary$assessed_threat_prop, decreasing = TRUE),]
@@ -514,17 +525,17 @@ mammals_pd_merged <- mammals_pd_merged[order(mammals_pd_merged$no.over.median, d
 # Subset data for lineages which are only above median ePD score
 EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$no.over.median > 94),]
 
-EDGE_priority_lineages <- EDGE_priority_lineages[which(EDGE_priority_lineages$unassessed_prop < 0.10),] 
+t <- EDGE_priority_lineages[which(EDGE_priority_lineages$no_DD_NE_prop < 0.2),] 
 
 # list these families as EDGE priorities
 EDGE_priority_lineages$EDGE_priority <- "Yes"
 
 # define what type of families these lineages are
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop == 0 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$no_DD_NE_prop < 0.1 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
 
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.1 | EDGE_priority_lineages$assessed_threat_prop < 1]<- "Watchlist lineage"
 
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 10 & EDGE_priority_lineages$assessed_threat_prop < 1]<- "Watchlist lineage"
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.1 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
 
 # Either save or load in data
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/ALL_mammal_phylogeny_data.RData")
