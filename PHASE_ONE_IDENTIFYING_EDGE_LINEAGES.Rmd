@@ -92,7 +92,6 @@ EDGE_mammals$RL_binary[EDGE_mammals$RL.cat == "CR"] <- 1
 EDGE_mammals <- EDGE_mammals[order(EDGE_mammals$Family),]
 
 # insert current status of Elephants result into EDGE mammal dataset- based off latest IUCN assessment
-carnivore.df <- EDGE_mammals[c("289"),]
 
 # insert taxonid
 EDGE_mammals[c("289"), 1] <- 181007989
@@ -364,7 +363,7 @@ for (j in 2:length(mammal.trees.full)){
   
   #print(mammal.trees.full[[j]])
   
-  for (k in 1:length(EDGE_family)){
+  for (k in 1:length(EDGE_family)){ 
     
     # get most recent common ancestor for each list of family
     MRCA_nodes <- MRCA(mammal.trees.full[[j]], c(EDGE_family[[k]]$Species))
@@ -384,6 +383,7 @@ for (j in 2:length(mammal.trees.full)){
 
 # Calculate median, IQR and range for each family from 100 iterations
 
+# Don't need this!!
 save(data_out, file = "100_family_EDGE_scores.RData")
 
 base::load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/100_family_EDGE_scores.RData")
@@ -514,10 +514,10 @@ for(i in 1:100){ # for 1 of 100 trees
 ex_PD_full <- ex_PD_full[c(1:6)]
 
 # merge with above median EDGE scores dataframe
-ex_PD_full <- merge(ex_PD_full, family.iter, by = "Family")
+ex_PD_full <- merge(ex_PD_full, family.iter, by = "Family", all = TRUE)
 
 # merge RLI and ePD datasets
-mammals_pd_merged <- merge(EDGE_mammal_summary, ex_PD_full)
+mammals_pd_merged <- merge(EDGE_mammal_summary, ex_PD_full, all = TRUE)
 
 # Order by proportioned of threatened species
 mammals_pd_merged <- mammals_pd_merged[order(mammals_pd_merged$no.over.median, decreasing = TRUE),]
@@ -525,22 +525,26 @@ mammals_pd_merged <- mammals_pd_merged[order(mammals_pd_merged$no.over.median, d
 # Subset data for lineages which are only above median ePD score
 EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$no.over.median > 94),]
 
-t <- EDGE_priority_lineages[which(EDGE_priority_lineages$no_DD_NE_prop < 0.2),] 
-
 # list these families as EDGE priorities
 EDGE_priority_lineages$EDGE_priority <- "Yes"
 
 # define what type of families these lineages are
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$no_DD_NE_prop < 0.1 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$no_DD_NE_prop < 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
 
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.1 | EDGE_priority_lineages$assessed_threat_prop < 1]<- "Watchlist lineage"
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 | EDGE_priority_lineages$assessed_threat_prop < 1]<- "Watchlist lineage"
 
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.1 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
 
-# Either save or load in data
-load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/ALL_mammal_phylogeny_data.RData")
+# Get lengths of each priority lineage list 
+sum(lengths(regmatches(EDGE_priority_lineages$priority_type, gregexpr("Priority lineage", EDGE_priority_lineages$priority_type))))
+
+# Either save/ load FINAL bits of data for everything mammal phylogeny related
+save(family.iter,EDGE_priority_lineages, ex_PD_full, mammal.trees.full, mammal.trees.upham, data_out, data_out_upham, file =  "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/ALL_mammal_phylogeny_data.RData")
+
+# Save/load summary datasets for ALL taxonomic groups
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores.EDGE_summary_dataframes_phase_one.RData")
 
 # Write csv for priority EDGE lineages
-write.csv(EDGE_priority_lineages, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/LPI_species_list.csv")
+write.csv(EDGE_priority_lineages, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/EDGE_mammals_prioirty_list.csv")
 
 ```
