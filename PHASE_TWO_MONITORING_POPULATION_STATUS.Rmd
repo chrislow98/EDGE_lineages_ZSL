@@ -28,7 +28,7 @@ library(remotes) # install github packages
 library(devtools) # install github packages
 library(traitdata) # get data from PANTHERIA
 library(rlpi) # calculate LPI lambdas
-library(litserchr) # pull out conservation measures from text
+library(litsearchr) # pull out conservation measures from text
 
 ```
 
@@ -46,6 +46,9 @@ IUCN_pop_trend <- read.csv("C:/Users/Student/Zoological Society of London/EDGEof
 RLI_EDGE_names_2008 <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RLI_data_with_EDGE_names.csv")
 
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
+
+# load this data: redlist_status, redlist_threats, Generation_length, Pantheria, mammals_pd_merged, IUCN_RL_status_combined, conservation_actions
+load(file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/phase_two_datasets.RData")
 
 ```
 
@@ -289,6 +292,13 @@ redlist_threats <- redlist_threats[c(1:3, 7:8)]
 # subset top utilised threats for mammals 
 redlist_threats <- redlist_threats[which(redlist_threats$code == "2.1" | redlist_threats$code == "5.3" | redlist_threats$code == "5.1" | redlist_threats$code == "1.1" | redlist_threats$code == "2.3" | redlist_threats$code == "8.1") , ]
 
+# remove threats that repeat for each species 
+
+# try filter by species
+redlist_threats <- redlist_threats %>% 
+  group_by(scientific_name.x) %>% 
+  filter(!duplicated(code))
+
 # Get proportions of threatened species for each family
 # Convert code into numeric
 redlist_threats$code <- as.numeric(redlist_threats$code)
@@ -325,8 +335,7 @@ require(litsearchr)
 # load in conservation action data (text)
 conservation_actions <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Conservation_action/conservation_actions.csv")
 
-# extract key conservation action terms
-key_con_terms <- extract_terms(text=conservation_actions[, "conservationActions"], method="fakerake", min_freq=100, min_n=2, max_n = 9)
+
 
 # trying to highlight key words from conservation action
 x <- conservation_actions[grepl("protected areas", conservation_actions[["conservationActions"]]) | grepl("nature reserves", conservation_actions[["conservationActions"]]) | grepl("forest reserve", conservation_actions[["conservationActions"]]) | grepl("national parks", conservation_actions[["conservationActions"]]) | grepl("species occurs", conservation_actions[["conservationActions"]]), ] 
@@ -337,8 +346,8 @@ x <- conservation_actions[grepl("occurs in protected area", conservation_actions
 
 # convert conservation actions into binary
 conservation_actions$con_action_binary[conservation_actions$conservationActions == "protected areas"] <- 1
-trait$EUFG[trait$Species == "Rutilus_rutilus"] <- "Fw"
-trait$EUFG[trait$Species == "Abramis_brama"] <- "Fw"
+
+t <- rl_measures(name = 'oxyx dammah', key = apikey)
 
 # list taxonid from IUCN data to extract in lapply function
 spp <- mammals_IUCN_full$taxonid[1:30]
@@ -346,9 +355,6 @@ spp <- mammals_IUCN_full$taxonid[1:30]
 # Function to retrieve IUCN threat data - using ID as a proxy for dataframe
 # Download red list threats for all species
 redlist_measures <- do.call(rbind,lapply(seq_len(length(spp)),FUN=function(i){xi <- rl_measures(id = spp[i], key= apikey); if(length(xi$result)) {data.frame(species=spp[i],xi$result) }})) 
-
-
-
 
 ```
 
@@ -457,18 +463,16 @@ sum(LPI_coverage$lpi_richness > 33, na.rm = TRUE)
 
 ```{r load PanTHERIA dataset, echo=TRUE}
 
-#load in dataset - 5798 species
-mannal_bodysize_full <- pantheria
+#load in dataset - 3802 species
+Pantheria <- pantheria
 
 # Get mean body size for each family
 
-mammal_bodysize_full <- mannal_bodysize_full %>% 
-  select(Family, Genus, Species, AdultBodyMass_g, SexualMaturityAge_d) %>% 
+mammal_bodysize_full <- Pantheria %>% 
+  select(Family, Genus, Species, AdultBodyMass_g) %>% 
   group_by(Family) %>% 
-  summarise(bodysize_mean = mean(AdultBodyMass_g, na.rm = TRUE),
-            Genlength_mean = mean(SexualMaturityAge_d, na.rm = TRUE))
+  dplyr::summarise(bodysize_mean = mean(AdultBodyMass_g, na.rm = TRUE))
 
-# join to big dataframe
 
 # load in Pacifici et al. (2013) generation length dataset
 
@@ -478,14 +482,63 @@ Generation_length <- read.csv("C:/Users/Student/Zoological Society of London/EDG
 mammal_genlength <- Generation_length %>% 
   dplyr::select(TaxID, Family, Scientific_name, GenerationLength_d) %>% 
   group_by(Family) %>% 
-  summarise(Gen_length = mean(GenerationLength_d, na.rm = TRUE))
-
-# JOin to main dataset?
+  dplyr::summarise(Gen_length_days = mean(GenerationLength_d, na.rm = TRUE))
 
 
 ```
 
+
+# Aggregating all data sources together
 ```{r combine data sources, echo=TRUE}
+
+# Make sure you use the pd_mammals_merged dataset
+save(mammals_pd_merged, EDGE_priority_lineages, EDGE_mammal_summary, EDGE_amphibian_summary, EDGE_bird_summary, EDGE_reptile_summary, file =  "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores.EDGE_summary_dataframes_phase_TWO_.RData")
+
+# rename Family column and remove richness scores (only need to worry about overall richness score)
+
+names(redlist_status_summary)[1] <- "Family"
+
+redlist_status_summary <- redlist_status_summary[,c(1, 3:10)]
+
+# merge by FAMILY
+mammals_pd_merged <- merge(mammals_pd_merged, redlist_status_summary, all = TRUE)
+
+# combine change in red list status with mammals merges
+# prepare dataframe
+
+RL_change_df <- RL_change_df[,c(1,3:8)]
+
+# merge by Family
+mammals_pd_merged <- merge(mammals_pd_merged, RL_change_df, by = "Family", all = TRUE)
+
+# combine threats to dataframe
+# Capitalise family names
+names(redlist_threat_summary)[1] <- "Family"
+
+# remove species richness column
+redlist_threat_summary <- redlist_threat_summary[,c(1,3:14)]
+
+# merge by FAMILY
+mammals_pd_merged <- merge(mammals_pd_merged, redlist_threat_summary, by = "Family", all = TRUE)
+
+# combine biological traits- body size
+mammals_pd_merged <- merge(mammals_pd_merged, mammal_bodysize_full, by = "Family", all = TRUE)
+
+# combine biological traits- generation length
+mammals_pd_merged <- merge(mammals_pd_merged, mammal_genlength, by = "Family", all = TRUE)
+
+# merge EDGE lineage priority lists and priority types 
+mammals_pd_merged$EDGE_prioirty[mammals_pd_merged$no.over.median > 94] <- "Yes"
+mammals_pd_merged$EDGE_prioirty[mammals_pd_merged$no.over.median < 94] <- "No"
+
+# get dataframe of priority EDGE lists
+EDGE_class <- as.data.frame(EDGE_priority_lineages[,c(1,20)])
+
+# merge together by FAMILY name - all = TRUE
+mammals_pd_merged <- merge(mammals_pd_merged, EDGE_class, by = "Family", all = TRUE)
+
+# Assign NA values with NO
+mammals_pd_merged$priority_type[is.na(mammals_pd_merged$priority_type)] <- "No"
 
 
 ```
