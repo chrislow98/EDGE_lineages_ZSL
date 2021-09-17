@@ -528,12 +528,19 @@ EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$no.over.medi
 # list these families as EDGE priorities
 EDGE_priority_lineages$EDGE_priority <- "Yes"
 
+# Create watchlist column- if values are 1 means they potentially fit watchlist criteria
+
 # define what type of families these lineages are
+# Fill all rows with NA and add in the EDGE lineage criteria
+EDGE_priority_lineages$priority_type <- "NA"
+
 EDGE_priority_lineages$priority_type[EDGE_priority_lineages$no_DD_NE_prop < 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
 
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 | EDGE_priority_lineages$assessed_threat_prop < 1]<- "Watchlist lineage"
-
 EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
+
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1]<- "Watchlist lineage"
+
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$priority_type == "NA"] <- "Boarderline lineage"
 
 # Get lengths of each priority lineage list 
 sum(lengths(regmatches(EDGE_priority_lineages$priority_type, gregexpr("Priority lineage", EDGE_priority_lineages$priority_type))))
