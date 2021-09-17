@@ -36,19 +36,34 @@ library(litsearchr) # pull out conservation measures from text
 Load in data to monitor population for Mammal lineages
 
 ```{r load data, echo=FALSE}
-
+# Current EDGE dataset
 EDGE_mammals <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_mammals.csv", stringsAsFactors = FALSE)
 
+# Old 2008 red list assessments for mammals
 mammals_old_RLI <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Mammal_RLI.csv")
 
 IUCN_pop_trend <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/pop_trend_IUCN.csv")
 
+# matching EDGE binomials with redlist names
 RLI_EDGE_names_2008 <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RLI_data_with_EDGE_names.csv")
 
+# load in Pacifici et al. (2013) generation length dataset
+Generation_length <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Genlength_mammals.csv")
+
+# load this data (raw): redlist_status, redlist_threats, Generation_length, Pantheria, mammals_pd_merged, IUCN_RL_status_combined, conservation_actions
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/phase_two_datasets.RData")
+
+# load this data (summary): EDGE_mammal_summary, EDGE_mammals, IUCN_RL_status_change, mammals_iucn_full, redlist status, redlist_status_summary, redlist_threats, redlist_threats_summary, RL_change_df
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
 
-# load this data: redlist_status, redlist_threats, Generation_length, Pantheria, mammals_pd_merged, IUCN_RL_status_combined, conservation_actions
-load(file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/phase_two_datasets.RData")
+# load EDGE priroity lineage data: mammals_pd_merged, EDGE_priority_lineages, EDGE_amphibian_summary, EDGE_reptile_summary
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores.EDGE_summary_dataframes_phase_TWO_.RData")
+
+# load data: family ePD loss iteration scores
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/ePD_iteration_scores.RData")
+
+# Just save priority EDGE lineage list and PD_mammal_merged list as essential for analysis: mammals_pd_merged, EDGE_priority_lineages (final dataset so far!!!)
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
 
 ```
 
@@ -241,8 +256,6 @@ RL_change_df <- IUCN_RL_status_combined %>%
 
 IUCN_RL_status_combined <- IUCN_RL_status_combined[order(IUCN_RL_status_combined$Family, decreasing = FALSE),]
 
-save(mammals_IUCN_full, IUCN_RL_status_combined, RL_change_df, redlist_status, redlist_status_summary, EDGE_mammals, EDGE_mammal_summary, redlist_threats, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
-
 #################### SCRAP CODE
 # code which counts characters instead of having to convert them xx
 sum(lengths(regmatches(IUCN_RL_cat_2008$X2008.RL.cat, gregexpr("EX", IUCN_RL_cat_2008$X2008.RL.cat))))
@@ -322,15 +335,10 @@ redlist_threat_summary <- redlist_threats %>%
                    prop_8_1 = no_8_1/richness)
 
 
-save(mammals_IUCN_full, IUCN_RL_status_combined, RL_change_df, redlist_status, redlist_status_summary, EDGE_mammals, EDGE_mammal_summary, redlist_threats_full, redlist_threats, redlist_threat_summary, mammals_IUCN_full, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/RL_population_trend_data_final.RData")
-
 ```
 
 # Downloading conservation measures from IUCN 
 ```{r conservation measures, echo=TRUE}
-
-# Load packages needed
-require(litsearchr)
 
 # load in conservation action data (text)
 conservation_actions <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Conservation_action/conservation_actions.csv")
@@ -466,17 +474,12 @@ sum(LPI_coverage$lpi_richness > 33, na.rm = TRUE)
 #load in dataset - 3802 species
 Pantheria <- pantheria
 
-# Get mean body size for each family
+# Get mean body size for each family - using Pacifici et al. (2013) dataset
 
 mammal_bodysize_full <- Pantheria %>% 
   select(Family, Genus, Species, AdultBodyMass_g) %>% 
   group_by(Family) %>% 
   dplyr::summarise(bodysize_mean = mean(AdultBodyMass_g, na.rm = TRUE))
-
-
-# load in Pacifici et al. (2013) generation length dataset
-
-Generation_length <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Genlength_mammals.csv")
 
 # Get mean genreation length (days) for each family
 mammal_genlength <- Generation_length %>% 
@@ -492,7 +495,7 @@ mammal_genlength <- Generation_length %>%
 ```{r combine data sources, echo=TRUE}
 
 # Make sure you use the pd_mammals_merged dataset
-save(mammals_pd_merged, EDGE_priority_lineages, EDGE_mammal_summary, EDGE_amphibian_summary, EDGE_bird_summary, EDGE_reptile_summary, file =  "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores.EDGE_summary_dataframes_phase_TWO_.RData")
+save(mammals_pd_merged, EDGE_priority_lineages, EDGE_amphibian_summary, EDGE_bird_summary, EDGE_reptile_summary, file =  "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores.EDGE_summary_dataframes_phase_TWO_.RData")
 
 # rename Family column and remove richness scores (only need to worry about overall richness score)
 
@@ -538,7 +541,14 @@ EDGE_class <- as.data.frame(EDGE_priority_lineages[,c(1,20)])
 mammals_pd_merged <- merge(mammals_pd_merged, EDGE_class, by = "Family", all = TRUE)
 
 # Assign NA values with NO
-mammals_pd_merged$priority_type[is.na(mammals_pd_merged$priority_type)] <- "No"
+mammals_pd_merged$EDGE_priority[is.na(mammals_pd_merged$EDGE_priority)] <- "No"
+mammals_pd_merged$priority_type[is.na(mammals_pd_merged$priority_type)] <- "Non-Priority"
+
+# Scrap code? SAVE NEW PRIORITY DATAFRAME AND MAMMALS_PD_MERGED
+mammals_pd_merged <- merge(mammals_pd_merged, t, by = "Family", all = TRUE)
+
+# write csv for merged mammal PD
+write.csv(mammals_pd_merged, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_mammal_lineages.csv")
 
 
 ```
