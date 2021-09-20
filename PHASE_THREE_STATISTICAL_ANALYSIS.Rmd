@@ -6,17 +6,21 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(performance) # check model outputs
+library(lme4) # statistical modelling for logistic regressions and mixed-effects modelling
+library(corrplot) # creating a correlation matrix
+
 ```
 
-## R Markdown
+## Loading in final dataset in r
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r load data, echo=TRUE}
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# Just save priority EDGE lineage list and PD_mammal_merged list as essential for analysis: mammals_pd_merged, EDGE_priority_lineages (final dataset so far!!!)
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
 
-```{r cars}
-summary(cars)
+# load dataout datasets with both Upham and Gumbs datasets
+
 ```
 
 ## Testing the difference between
@@ -31,5 +35,37 @@ cor.test(mammals_pd_merged$Median.exPD, mammals_pd_merged$Median.ePD.UPHAM, meth
 ## Question (i) is the response of ePD loss a good predictor of extinction risk?
 
 ## Question (ii) Is the conservation status of priority lineages in a greater state of decline than non-priority lineages
+
+```{r explore data, echo=TRUE}
+
+names(mammals_pd_merged)
+
+head(mammals_pd_merged)
+
+summary(mammals_pd_merged)
+
+# visulising distibutions of data
+par(mfrow=c(2,46))
+for(i in 2:46) {
+    hist(mammals_pd_merged[,i], main=names(mammals_pd_merged)[i])
+}
+
+# creating a correlation matrix
+correlations <- cor(mammals_pd_merged[,2:46])
+corrplot(correlations, method="circle")
+
+# convert prioirty values to 1's and 0's
+mammals_pd_merged$EDGE_priority[mammals_pd_merged$EDGE_priority == "No"] <- 0
+mammals_pd_merged$EDGE_priority[mammals_pd_merged$EDGE_priority == "Yes"] <- 1
+
+# change to binary operator
+mammals_pd_merged$EDGE_priority <- as.numeric(mammals_pd_merged$EDGE_priority)
+
+# perform a glm fit
+priority_lineage_glm <- glm(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_downlisted + prop_uplisted + prop_stable, family = binomial, data = mammals_pd_merged)
+
+summary(priority_lineage_glm)
+
+```
 
 ## Question (iii) Is the response of population status/family associated with the concentration of anthropogenic threats for priority lineages
