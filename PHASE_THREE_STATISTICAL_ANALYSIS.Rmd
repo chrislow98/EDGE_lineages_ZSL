@@ -19,7 +19,7 @@ When you click the **Knit** button a document will be generated that includes bo
 summary(cars)
 ```
 
-## Including Plots
+## Testing the difference between
 
 You can also embed plots, for example:
 
@@ -28,5 +28,8 @@ You can also embed plots, for example:
 cor.test(mammals_pd_merged$Median.exPD, mammals_pd_merged$Median.ePD.UPHAM, method = "spearman")
 
 ```
+## Question (i) is the response of ePD loss a good predictor of extinction risk?
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Question (ii) Is the conservation status of priority lineages in a greater state of decline than non-priority lineages
+
+## Question (iii) Is the response of population status/family associated with the concentration of anthropogenic threats for priority lineages
