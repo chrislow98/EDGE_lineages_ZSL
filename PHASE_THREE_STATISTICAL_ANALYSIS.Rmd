@@ -6,10 +6,17 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-library(performance) # check model outputs
-library(lme4) # statistical modelling for logistic regressions and mixed-effects modelling
-library(corrplot) # creating a correlation matrix
 
+library(tidyverse) # data wrangling and visualizatio
+library(performance) # check model outputs
+library(lme4) # analysis for logistic regressions and mixed-effects modelling
+library(corrplot) # creating a correlation matrix
+library(sjPlot) # to visualizing mixed-effects models
+library(effects) # to visualizing mixed-effects models
+library(report) # mainly for an "report" function
+library(emmeans) # post-hoc analysis
+library(knitr) # beautifying tables
+library(MASS) # building negative binomial GLM's
 ```
 
 ## Loading in final dataset in r
@@ -27,45 +34,92 @@ load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low 
 
 You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
+```{r testing phylogeny datasets, echo=FALSE}
 
 cor.test(mammals_pd_merged$Median.exPD, mammals_pd_merged$Median.ePD.UPHAM, method = "spearman")
 
 ```
 ## Question (i) is the response of ePD loss a good predictor of extinction risk?
 
+```{r ePD loss question, echo=TRUE}
+
+ePD_response_df <- mammals_pd_merged[,c(1:3,5,14,34:47)]
+
+```
+
 ## Question (ii) Is the conservation status of priority lineages in a greater state of decline than non-priority lineages
 
 ```{r explore data, echo=TRUE}
 
-names(mammals_pd_merged)
+# subset data to only contain population probabilities
+priority_lineages_df <- mammals_pd_merged[,c(1,2,3,9,21,23,25,29,31,33, 48)]
 
-head(mammals_pd_merged)
+names(priority_lineages_df)
 
-summary(mammals_pd_merged)
+head(priority_lineages_df)
+
+summary(priority_lineages_df)
 
 # visulising distibutions of data
-par(mfrow=c(2,46))
-for(i in 2:46) {
-    hist(mammals_pd_merged[,i], main=names(mammals_pd_merged)[i])
+par(mfrow=c(3,10))
+for(i in 3:10) {
+    hist(priority_lineages_df[,i], main=names(priority_lineages_df)[i])
 }
 
 # creating a correlation matrix
-correlations <- cor(mammals_pd_merged[,2:46])
+correlations <- cor(priority_lineages_df[,3:10])
 corrplot(correlations, method="circle")
 
 # convert prioirty values to 1's and 0's
-mammals_pd_merged$EDGE_priority[mammals_pd_merged$EDGE_priority == "No"] <- 0
-mammals_pd_merged$EDGE_priority[mammals_pd_merged$EDGE_priority == "Yes"] <- 1
+priority_lineages_df$EDGE_priority[priority_lineages_df$EDGE_priority == "No"] <- 0
+priority_lineages_df$EDGE_priority[priority_lineages_df$EDGE_priority == "Yes"] <- 1
 
 # change to binary operator
-mammals_pd_merged$EDGE_priority <- as.numeric(mammals_pd_merged$EDGE_priority)
+priority_lineages_df$EDGE_priority <- as.numeric(priority_lineages_df$EDGE_priority)
 
+# Replace all NA values with 0
+priority_lineages_df[is.na(priority_lineages_df)] <- 0
+
+# Add family ID 
+EDGE_priority_lineages$Family_ID <- seq(1:160)
+
+# check for generalized inflation factors - look at colinearity  
+corvif(EDGE_priority_lineages)
+
+# some of the data follows a bimodal distiribtuion
 # perform a glm fit
-priority_lineage_glm <- glm(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_downlisted + prop_uplisted + prop_stable, family = binomial, data = mammals_pd_merged)
+priority_lineage_glm <- glm.nb(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_uplisted + prop_downlisted + prop_stable, data = priority_lineages_df)
 
 summary(priority_lineage_glm)
+
+with(summary(priority_lineage_glm), 1 - deviance/null.deviance)
+
+# log transform variables - makes to sense to transform proportional data???
+
+with(summary(priority_lineage_glm), 1 - deviance/null.deviance)
+
+1-(priority_lineage_glm$deviance/priority_lineage_glm$null.deviance)
+
+
+# building a mixed-effects linear logistic regression
+m_ri <- glmer(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_downlisted + prop_uplisted + prop_stable + (1 | Family), data = priority_lineages_df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+summary(m_ri)
+
+tab_model(m_ri, show.aic = T)
 
 ```
 
 ## Question (iii) Is the response of population status/family associated with the concentration of anthropogenic threats for priority lineages
+
+```{r threat analaysis, echo=TRUE}
+
+#subset threat data
+threat_analysis_df <- mammals_pd_merged[,c(1:3,9,29, 34:45)]
+
+
+# creating a correlation matrix - no correlations between variables. Can therefore dismiss the assumption of non-independence
+correlations <- cor(threat_analysis_df[,3:17])
+corrplot(correlations, method="circle")
+
+```
