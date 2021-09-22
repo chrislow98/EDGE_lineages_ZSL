@@ -50,8 +50,7 @@ EDGE_amphibians <- read.csv("C:/Users/Student/Zoological Society of London/EDGEo
 
 EDGE_reptiles <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_reptiles.csv", stringsAsFactors = FALSE)
 
-# Use base::load() because of the renv package installed
-base::load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/mammal_phylogenies_new_distribution.RData")
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/mammal_phylogenies_new_distribution.RData")
 
 
 options(digits=3)
@@ -105,8 +104,8 @@ EDGE_mammal_summary <- EDGE_mammals %>%
   dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>%
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
+            median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
-            
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
             unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
@@ -157,9 +156,10 @@ EDGE_birds <- EDGE_birds[order(EDGE_birds$Family),]
 # Pipe to create new summary dataframe for birds
 
 EDGE_bird_summary <- EDGE_birds %>% 
-  dplyr::select(Family, RL.cat, RL_binary) %>% 
+  dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>% 
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
+            median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score       
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
             
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
@@ -209,10 +209,12 @@ EDGE_amphibians <- EDGE_amphibians[order(EDGE_amphibians$Family),]
 # Pipe to create new summary dataframe for birds
 
 EDGE_amphibian_summary <- EDGE_amphibians %>% 
-  dplyr::select(Family, RL.cat, RL_binary) %>% 
+  dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>% 
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
+            median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
+            median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
             
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
@@ -262,11 +264,12 @@ EDGE_reptiles <- EDGE_reptiles[order(EDGE_reptiles$Family),]
 # Pipe to create new summary dataframe for birds
 
 EDGE_reptile_summary <- EDGE_reptiles %>% 
-  dplyr::select(Family, RL.cat, RL_binary) %>% 
+  dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>% 
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
+            median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
-            
+
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
             unassessed_prop = no_unassessed/richness, # calculate the proportion of unassessed and threatened species
@@ -386,7 +389,7 @@ for (j in 2:length(mammal.trees.full)){
 # Don't need this!!
 save(data_out, file = "100_family_EDGE_scores.RData")
 
-base::load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/100_family_EDGE_scores.RData")
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/100_family_EDGE_scores.RData")
 
 # this is how you do it for median - do it for lower IQR, upper IQR, lower and upper range too!
 i <- 1
@@ -522,29 +525,58 @@ mammals_pd_merged <- merge(EDGE_mammal_summary, ex_PD_full, all = TRUE)
 # Order by proportioned of threatened species
 mammals_pd_merged <- mammals_pd_merged[order(mammals_pd_merged$no.over.median, decreasing = TRUE),]
 
+########################### OLD FRAMEWORK FOR SORTING OUT EDGE SPECIES- MENTION BUT DON'T USE
+
 # Subset data for lineages which are only above median ePD score
-EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$no.over.median > 94),]
+#EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$no.over.median > 94),]
 
 # list these families as EDGE priorities
-EDGE_priority_lineages$EDGE_priority <- "Yes"
+#EDGE_priority_lineages$EDGE_priority <- "Yes"
 
 # Create watchlist column- if values are 1 means they potentially fit watchlist criteria
-EDGE_priority_lineages$watchlist <- (EDGE_priority_lineages$no_threated - EDGE_priority_lineages$data_sufficient_sp)
+#EDGE_priority_lineages$watchlist <- (EDGE_priority_lineages$no_threated - EDGE_priority_lineages$data_sufficient_sp)
 
 # define what type of families these lineages are
 # Fill all rows with NA and add in the EDGE lineage criteria
-EDGE_priority_lineages$priority_type <- "NA"
+#EDGE_priority_lineages$priority_type <- "NA"
 
+#EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop < 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
+
+#EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
+
+#EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$watchlist == 1]<- "Watchlist lineage"
+
+# no boarderline lineage for new framework
+
+#### New steps for re-ordering EDGE lineages- using EDGE metric
+# Subset data for lineages which are only above median EDGE score
+EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$median_EDGE > median(mammals_pd_merged$median_EDGE)),]
+
+EDGE_priority_lineages$EDGE_priority <- "Yes"
+
+# LESS THAN SIGN
 EDGE_priority_lineages$priority_type[EDGE_priority_lineages$no_DD_NE_prop < 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
 
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
+# GREATER THAN SIGN
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$no_DD_NE_prop > 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
 
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$watchlist == 1]<- "Watchlist lineage"
-
-EDGE_priority_lineages$priority_type[EDGE_priority_lineages$priority_type == "NA"] <- "Boarderline lineage"
+# LESS THAN SIGN
+EDGE_priority_lineages$priority_type[EDGE_priority_lineages$assessed_threat_prop < 1] <- "Watchlist lineage"
 
 # Get lengths of each priority lineage list 
-sum(lengths(regmatches(EDGE_priority_lineages$priority_type, gregexpr("Priority lineage", EDGE_priority_lineages$priority_type))))
+sum(lengths(regmatches(EDGE_priority_lineages$priority_type, gregexpr("Watchlist lineage", EDGE_priority_lineages$priority_type))))
+
+# merge priority and full mammal dataset
+mammals_pd_merged <- merge(mammals_pd_merged, t, by = "Family", all = TRUE)
+
+# Set all families below median to NO
+mammals_pd_merged$EDGE_priority[is.na(mammals_pd_merged$EDGE_priority)] <- "No"
+
+# Set all families which are non-priority to non-prioirty
+mammals_pd_merged$priority_type[is.na(mammals_pd_merged$priority_type)] <- "Non-Priority"
+
+#save(mammals_pd_merged, EDGE_priority_lineages, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
+
 
 ```
 
