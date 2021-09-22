@@ -528,27 +528,27 @@ mammals_pd_merged <- mammals_pd_merged[order(mammals_pd_merged$no.over.median, d
 ########################### OLD FRAMEWORK FOR SORTING OUT EDGE SPECIES- MENTION BUT DON'T USE
 
 # Subset data for lineages which are only above median ePD score
-#EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$no.over.median > 94),]
+ePD_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$no.over.median > 94),]
 
 # list these families as EDGE priorities
-#EDGE_priority_lineages$EDGE_priority <- "Yes"
+ePD_priority_lineages$EDGE_priority <- "Yes"
 
 # Create watchlist column- if values are 1 means they potentially fit watchlist criteria
 #EDGE_priority_lineages$watchlist <- (EDGE_priority_lineages$no_threated - EDGE_priority_lineages$data_sufficient_sp)
 
 # define what type of families these lineages are
 # Fill all rows with NA and add in the EDGE lineage criteria
-#EDGE_priority_lineages$priority_type <- "NA"
+ePD_priority_lineages$priority_type <- "NA"
 
-#EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop < 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
+ePD_priority_lineages$priority_type[ePD_priority_lineages$no_DD_NE_prop < 0.5 & ePD_priority_lineages$assessed_threat_prop == 1] <- "Priority lineage"
 
-#EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
+ePD_priority_lineages$priority_type[ePD_priority_lineages$no_DD_NE_prop > 0.5 & ePD_priority_lineages$assessed_threat_prop == 1] <- "Research lineage"
 
-#EDGE_priority_lineages$priority_type[EDGE_priority_lineages$unassessed_prop > 0.5 & EDGE_priority_lineages$watchlist == 1]<- "Watchlist lineage"
+ePD_priority_lineages$priority_type[ePD_priority_lineages$assessed_threat_prop < 1]<- "Watchlist lineage"
 
 # no boarderline lineage for new framework
 
-#### New steps for re-ordering EDGE lineages- using EDGE metric
+################################################################################ New steps for re-ordering EDGE lineages- using EDGE metric
 # Subset data for lineages which are only above median EDGE score
 EDGE_priority_lineages <- mammals_pd_merged[which(mammals_pd_merged$median_EDGE > median(mammals_pd_merged$median_EDGE)),]
 
@@ -575,7 +575,7 @@ mammals_pd_merged$EDGE_priority[is.na(mammals_pd_merged$EDGE_priority)] <- "No"
 # Set all families which are non-priority to non-prioirty
 mammals_pd_merged$priority_type[is.na(mammals_pd_merged$priority_type)] <- "Non-Priority"
 
-#save(mammals_pd_merged, EDGE_priority_lineages, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
+#save(mammals_pd_merged, EDGE_priority_lineages, ePD_priority_lineages, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
 
 
 ```
