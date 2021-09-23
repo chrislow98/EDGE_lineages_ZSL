@@ -45,23 +45,27 @@ cor.test(ex_PD_full$Median.exPD, ex_PD_full$Median.ePD.UPHAM, method = "spearman
 
 # subset and log variables
 ePD_spp_rich_df <- mammals_pd_merged[,c(3,14)]
+ePD_spp_rich_df$log_richness <- log(ePD_spp_rich_df$richness)
+ePD_spp_rich_df$log_ePD <- log(ePD_spp_rich_df$Median.exPD)
 
+# Test for normality
+shapiro.test(ePD_spp_rich_df$log_richness)
+shapiro.test(ePD_spp_rich_df$log_ePD)
 
 # Spearman's rank correlation between species richness and ePD
-cor.test(mammals_pd_merged$richness, mammals_pd_merged$Median.exPD, method = "spearman")
+cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$Median.exPD, method = "spearman")
 
-shapiro.test(mammals_pd_merged$richness)
-shapiro.test(ePD_response_df$ePD_log)
 
 ```
 ## Question (i) is the response of ePD loss a good predictor of extinction risk?
 # Use a poission distribution
 
-Do intrinsic and extrinsic threats predict ePD loss?
+Do intrinsic and extrinsic threats predict ED?
 
-```{r ePD loss question, echo=TRUE}
+```{r intrinsic and extrinsic threats, echo=TRUE}
 
-ePD_response_df <- mammals_pd_merged[,c(1:3,9,14,21,23,25,29,31,33,35,37,39,41,43,45,46:48)]
+# 
+ePD_response_df <- mammals_pd_merged[,c(1:4,9,14,26:39,48:49)]
 
 # visulising distributions of data
 # distribution of response variable is poission
@@ -74,7 +78,15 @@ for(i in 3:24) {
 ePD_response_df$ePD_log <- log(ePD_response_df$Median.exPD)
 ePD_response_df$bodysize_log <- log(ePD_response_df$bodysize_mean)
 ePD_response_df$gensize_log <- log(ePD_response_df$Gen_length_days)
-ePD_response_df$threat_sum <- rowSums(ePD_response_df[,c("prop_1_1", "prop_2_2", "prop_2_3", "prop_5_1", "prop_5_3", "prop_8_1")])
+
+# Calculate number of occurences which are greater than 0 to sum threat data
+ePD_response_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_2","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
+
+
+
+#This is how to compute a new variable counting occurences of value "1" in V1-V4. 
+ePD_response_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_2","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
+
 
 hist(ePD_response_df$ePD_log)
 
