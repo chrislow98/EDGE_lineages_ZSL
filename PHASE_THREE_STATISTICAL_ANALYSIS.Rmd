@@ -57,10 +57,7 @@ cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$Median.exPD, method = "spearm
 
 
 ```
-## Question (i) is the response of ePD loss a good predictor of extinction risk?
-# Use a poission distribution
-
-Do intrinsic and extrinsic threats predict ED?
+## Question (i) How do intrinsic and extrinsic threats predict ED?
 
 ```{r intrinsic and extrinsic threats, echo=TRUE}
 
@@ -70,68 +67,61 @@ ePD_response_df <- mammals_pd_merged[,c(1:4,9,14,26:39,48:49)]
 # visulising distributions of data
 # distribution of response variable is poission
 par(mfrow=c(3:4))
-for(i in 3:24) {
+for(i in 3:27) {
     hist(ePD_response_df[,i], main=names(ePD_response_df)[i])
 }
 
 # log transforming variables
-ePD_response_df$ePD_log <- log(ePD_response_df$Median.exPD)
-ePD_response_df$bodysize_log <- log(ePD_response_df$bodysize_mean)
-ePD_response_df$gensize_log <- log(ePD_response_df$Gen_length_days)
+ePD_response_df$ePD_log <- log(ePD_response_df$Median.exPD + 1)
+ePD_response_df$ED_log <- log(ePD_response_df$median_ED + 1)
+ePD_response_df$bodysize_log <- log(ePD_response_df$bodysize_mean + 1)
+ePD_response_df$gensize_log <- log(ePD_response_df$Gen_length_days + 1)
 
 # Calculate number of occurences which are greater than 0 to sum threat data
 ePD_response_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_2","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
 
 
-
-#This is how to compute a new variable counting occurences of value "1" in V1-V4. 
-ePD_response_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_2","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
-
-
-hist(ePD_response_df$ePD_log)
-
-# Change characters to factors
-ePD_response_df$Family <- as.factor(ePD_response_df$Family)
-ePD_response_df$Order <- as.factor(ePD_response_df$Order)
-
-
 # check colinearity of data
 # creating a correlation matrix
-correlations <- cor(ePD_response_df[,3:21])
+correlations <- cor(ePD_response_df[,3:23])
 corrplot(correlations, method="circle")
 
-# fill in all NA's as 0's
-ePD_response_df[is.na(ePD_response_df)] <- 0
+# run a glm- with full interactions
+ED_glm <- glm(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, family = gaussian, data = ePD_response_df) 
 
-# run a glm using 
-ePD_glm <- glm(ePD_log ~ bodysize_log + gensize_log + prop_1_1 + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1, family = gaussian, data = ePD_response_df) 
-
-summary(ePD_glm)
-
-with(summary(ePD_glm), 1 - deviance/null.deviance)
-
-check_model(ePD_glm)
-
-# run a glm- without individual threats
-ePD_glm <- glm(Median.exPD ~ bodysize_mean + Gen_length_days + threat_sum, family = "poisson", data = ePD_response_df) 
-
-# using a zero inflation glm 
-
-
-summary(ePD_glm)
+summary(ED_glm)
 
 # find out explanatory power
-with(summary(ePD_glm), 1 - deviance/null.deviance)
+with(summary(ED_glm), 1 - deviance/null.deviance)
 
-check_model(ePD_glm)
+# check model performance - assumptions not violated 
+check_model(ED_glm)
 
 # now try glmm to see if it can explain any additional variation
 # building a mixed-effects linear logistic regression
-GLMM_ePD <- glmer(Median.exPD ~ bodysize_mean + Gen_length_days + threat_sum + prop_1_1 + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + 
-                    (1 | Order), 
-                    data = ePD_response_df,
-                    family = poisson,
-                    control = glmerControl(optimizer = "bobyqa"))
+m <- lmer(log(median_ED +1) ~ log(bodysize_mean +1) + log(Gen_length_days +1)  + threat_sum + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + (1 | Order), data = ePD_response_df)
+
+summary(m)
+
+confint(m)
+
+ranef(m)
+
+print(anova(m))
+
+### Summary- don't use LMM modelling 
+
+# testing for overdispersion
+overdisp_fun <- function(model) {
+    rdf <- df.residual(model)
+    rp <- residuals(model,type="pearson")
+    Pearson.chisq <- sum(rp^2)
+    prat <- Pearson.chisq/rdf
+    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+
+overdisp_fun(ED_glm)
 
 ```
 
@@ -219,14 +209,9 @@ GLMM_prioirty_lineages <- glmer(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab 
                                 family = binomial,
                                 control = glmerControl(optimizer = "bobyqa"))
 
-m <- glmer(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_downlisted + prop_uplisted + prop_stable + 
-           (1 | Order), 
-           data = priority_lineages_df, 
-           family = binomial, 
-           control = glmerControl(optimizer = "bobyqa"),
-           nAGQ = 10)
 
-GLMM_priority_lineages <- glmer.nb(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_downlisted + prop_uplisted + prop_stable + (1 | Family/Order), data = priority_lineages_df, 
+
+GLMM_priority_lineages <- glme(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_downlisted + prop_uplisted + prop_stable + (1 | Family/Order), data = priority_lineages_df, 
                  control = glmerControl(optimizer = "bobyqa"))
 
 check_model(m_ri)
