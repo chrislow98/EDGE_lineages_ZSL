@@ -274,7 +274,7 @@ tab_model(m_ri, show.aic = T)
 ```{r population trend analysis, echo=TRUE}
 
 #subset threat data
-pop_status_df <- mammals_pd_merged[,c(1,3,7,42:46,49)]
+pop_status_df <- mammals_pd_merged[,c(1,3,9,42:46,49)]
 
 # Remove all NA's from columns
 pop_status_df <- pop_status_df[complete.cases(pop_status_df),]
@@ -289,6 +289,50 @@ for(i in 2:9) {
 correlations <- cor(pop_status_df[,2:9])
 corrplot(correlations, method="circle")
 
+# glm in which EDGE or ED scores is a responds to proportion of threatened species interacts with threats predict popualtion decline
+# perform a glm fit
+pop_status_dec_glm <- glm(Prop_dec ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
 
+# get model summary
+summary(pop_status_dec_glm)
+
+# get explanatory power
+with(summary(pop_status_dec_glm), 1 - deviance/null.deviance)
+
+# test for overdispersion
+overdisp_fun(pop_status_dec_glm)
+
+# check model performance
+check_model(pop_status_dec_glm)
+
+# create null model
+pop_status_dec_glm_null <- glm(Prop_dec ~ 1, family = quasibinomial("logit"), data = pop_status_df)
+
+# compare full and reduced model
+anova(pop_status_dec_glm, pop_status_dec_glm_null, test = "F")
+
+# now look at glm for population increases
+pop_status_inc_glm <- glm(Prop_inc ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
+
+# get model summary
+summary(pop_status_inc_glm)
+
+# get explanatory power
+with(summary(pop_status_inc_glm), 1 - deviance/null.deviance)
+
+# test for overdispersion
+overdisp_fun(pop_status_dec_glm)
+
+# check model performance
+check_model(pop_status_inc_glm)
+
+# create null model
+pop_status_inc_glm_null <- glm(Prop_inc ~ 1, family = quasibinomial("logit"), data = pop_status_df)
+
+# compare full and null model
+anova(pop_status_inc_glm, pop_status_inc_glm_null, test = "F")
+
+# compare full and reduced model
+anova(pop_status_dec_glm, pop_status_dec_glm_null, test = "F")
 
 ```
