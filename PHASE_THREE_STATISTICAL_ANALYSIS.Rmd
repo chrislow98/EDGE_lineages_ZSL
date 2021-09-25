@@ -21,6 +21,7 @@ library(knitr) # beautifying tables
 library(MASS) # model selection using drop terms
 library(pscl) # zero-inflation regression models
 library(MuMIn) # model comparison
+library(DHARMa)
 
 ```
 
@@ -183,114 +184,111 @@ print(anova(m))
 
 ```
 
-## Question (ii) Does the response of population decline interact with the proportion of extrinsic (anthropogenic) threats?
+## Question (ii) How does the inteaction between EDGE/ED score with proportion of threatened species predict conservation status?
 
 
-```{r explore data, echo=TRUE}
+```{r conservation staus, echo=TRUE}
 
 # subset data to only contain population probabilities
-threat_interacts_df <- mammals_pd_merged[,c(1:3,9,14,20:37,40,49)]
+con_status_interacts_df <- mammals_pd_merged[,c(1,3,9,14,21,23,39,49)]
 
-names(threat_interacts_df)
+names(con_status_interacts_df)
 
-head(threat_interacts_df)
+head(con_status_interacts_df)
 
-summary(threat_interacts_df)
+summary(con_status_interacts_df)
 
-# Change lineage priority as threat
-threat_interacts_df$priority_type <- as.factor(threat_interacts_df$EDGE_priority)
-
-# convert prioirty values to 1's and 0's
-threat_interacts_df$EDGE_priority[threat_interacts_df$EDGE_priority == "No"] <- 0
-threat_interacts_df$EDGE_priority[threat_interacts_df$EDGE_priority == "Yes"] <- 1
-
-# Calculate number of occurences which are greater than 0 to sum threat data
-threat_interacts_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_2","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
-
-# change to binary operator
-threat_interacts_df$EDGE_priority <- as.numeric(threat_interacts_df$EDGE_priority)
-
+# Remove all NA's from columns
+con_status_interacts_df <- con_status_interacts_df[complete.cases(con_status_interacts_df),]
 
 # visulising distibutions of data
-par(mfrow=c(3,4))
-for(i in 3:11) {
-    hist(priority_lineages_df[,i], main=names(priority_lineages_df)[i])
+par(mfrow=c(4,2))
+for(i in 2:8) {
+    hist(con_status_interacts_df[,i], main=names(con_status_interacts_df)[i])
 }
 
-# Viewing the distribution of variables
-GGally::ggpairs(priority_lineages_df[, c("assessed_threat_prop", "Prop_dec", "Prop_inc", "Prop_stab")])
-
-# boxplot
-boxplot(priority_lineages_df$Prop_dec)
-
 # creating a correlation matrix
-correlations <- cor(priority_lineages_df[,3:11])
+correlations <- cor(con_status_interacts_df[,2:8])
 corrplot(correlations, method="circle")
 
-# Replace all NA values with 0
-priority_lineages_df[is.na(priority_lineages_df)] <- 0
-
 # double check strucutre of dataset
-str(priority_lineages_df)
-
-# check for generalized inflation factors - look at colinearity  
-corvif(EDGE_priority_lineages)
+str(con_status_interacts_df)
 
 # glm in which EDGE or ED scores is a responds to proportion of threatened species interacts with threats
 # perform a glm fit
-threats_glm <- glm(prop_uplisted ~ assessed_threat_prop: prop_1_1 + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, family = poisson("log"), data = threat_interacts_df)
+con_status_uplisted_glm <- glm(prop_uplisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
 
-summary(threats_glm)
+# get summary of model output
+summary(con_status_uplisted_glm)
 
-priority_lineage_glm <- glm.nb(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_uplisted + prop_downlisted + prop_stable, data = priority_lineages_df)
+# get explanatory power of model 
+with(summary(con_status_uplisted_glm), 1 - deviance/null.deviance)
 
 # check for model performance
-performance::check_model(priority_lineage_glm)
+performance::check_model(con_status_uplisted_glm)
 
-# Get summary of results
-summary(priority_lineage_glm)
+# test for overdispersion
+overdisp_fun <- function(model) {
+    rdf <- df.residual(model)
+    rp <- residuals(model,type="pearson")
+    Pearson.chisq <- sum(rp^2)
+    prat <- Pearson.chisq/rdf
+    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
 
-# find out explanatory power
-with(summary(priority_lineage_glm), 1 - deviance/null.deviance)
+# I think there is overdispersion so fit with a quassipoisson distirbution
+overdisp_fun(con_status_uplisted_glm)
 
-# try a zero-inflated binomial regression
-m1 <- zeroinfl(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_uplisted + prop_downlisted + prop_stable | priority_type,
-  data = priority_lineages_df, dist = "poisson")
+# compare with null model
+con_status_uplisted_glm_null <- glm(prop_uplisted ~ 1, family = quasibinomial("logit"), data = con_status_interacts_df)
 
-summary(m1)
+# use anova to compare
+anova(con_status_uplisted_glm_null, con_status_uplisted_glm, test = "F")
 
-m1 <- zeroinfl(EDGE_priority ~ Trend_dec + Trend_inc + Trend_stab + no_stable + no_uplisted + no_downlisted | priority_type,
-  data = mammals_pd_merged, dist = "negbin")
+# looking at how the interaction between ED score and proporiton of threatened species predicts conservation status downlistings (improved conservation status)
+con_status_downlisted_glm <- glm(prop_downlisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
 
+# get model summary
+summary(con_status_downlisted_glm)
 
-# building a mixed-effects linear logistic regression
-GLMM_prioirty_lineages <- glmer(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_downlisted + prop_uplisted + prop_stable + (1 | Order), 
-                                data = priority_lineages_df,
-                                family = binomial,
-                                control = glmerControl(optimizer = "bobyqa"))
+# get explanatory power
+with(summary(con_status_downlisted_glm), 1 - deviance/null.deviance)
 
+# test for overdispersion
+overdisp_fun(con_status_downlisted_glm)
 
+# compare to null model
+con_status_downlisted_glm_null <- glm(prop_downlisted ~ 1, family = quasibinomial("logit"), data = con_status_interacts_df)
 
-GLMM_priority_lineages <- glme(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_downlisted + prop_uplisted + prop_stable + (1 | Family/Order), data = priority_lineages_df, 
-                 control = glmerControl(optimizer = "bobyqa"))
+# compare between null and full model
+anova(con_status_downlisted_glm, con_status_downlisted_glm_null, test = "F")
 
-check_model(m_ri)
-
-summary(m_ri)
-
+# present models in nice format- for tomorrow
 tab_model(m_ri, show.aic = T)
 
 ```
 
-## Question (iii) Is the response of population status/family associated with the concentration of anthropogenic threats for priority lineages
+## Question (iii) How does Is the response of population status/family associated with the concentration of anthropogenic threats for priority lineages (REPHRASE question in the morning)
 
-```{r threat analaysis, echo=TRUE}
+```{r population trend analysis, echo=TRUE}
 
 #subset threat data
-threat_analysis_df <- mammals_pd_merged[,c(1:3,9,21,29, 34:45)]
+pop_status_df <- mammals_pd_merged[,c(1,3,7,42:46,49)]
+
+# Remove all NA's from columns
+pop_status_df <- pop_status_df[complete.cases(pop_status_df),]
+
+# visulising distibutions of data
+par(mfrow=c(4,2))
+for(i in 2:9) {
+    hist(pop_status_df[,i], main=names(pop_status_df)[i])
+}
 
 # creating a correlation matrix - no correlations between variables. Can therefore dismiss the assumption of non-independence
-correlations <- cor(threat_analysis_df[,3:18])
+correlations <- cor(pop_status_df[,2:9])
 corrplot(correlations, method="circle")
+
+
 
 ```
