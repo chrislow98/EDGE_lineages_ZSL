@@ -18,8 +18,10 @@ library(effects) # to visualizing mixed-effects models
 library(report) # mainly for an "report" function
 library(emmeans) # post-hoc analysis
 library(knitr) # beautifying tables
-library(MASS) # building negative binomial GLM's
+library(MASS) # model selection using drop terms
 library(pscl) # zero-inflation regression models
+library(MuMIn) # model comparison
+
 ```
 
 ## Loading in final dataset in r
@@ -44,16 +46,15 @@ You can also embed plots, for example:
 cor.test(ex_PD_full$Median.exPD, ex_PD_full$Median.ePD.UPHAM, method = "spearman")
 
 # subset and log variables
-ePD_spp_rich_df <- mammals_pd_merged[,c(3,14)]
+ePD_spp_rich_df <- mammals_pd_merged[,c(3,14,39)]
 ePD_spp_rich_df$log_richness <- log(ePD_spp_rich_df$richness)
 ePD_spp_rich_df$log_ePD <- log(ePD_spp_rich_df$Median.exPD)
 
-# Test for normality
-shapiro.test(ePD_spp_rich_df$log_richness)
-shapiro.test(ePD_spp_rich_df$log_ePD)
 
 # Spearman's rank correlation between species richness and ePD
 cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$Median.exPD, method = "spearman")
+
+cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$median_EDGE, method = "spearman")
 
 
 ```
@@ -62,7 +63,7 @@ cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$Median.exPD, method = "spearm
 ```{r intrinsic and extrinsic threats, echo=TRUE}
 
 # 
-ePD_response_df <- mammals_pd_merged[,c(1:4,9,14,26:39,48:49)]
+ePD_response_df <- mammals_pd_merged[,c(1,3:4,9,14,26:39,48:49)]
 
 # visulising distributions of data
 # distribution of response variable is poission
@@ -83,19 +84,87 @@ ePD_response_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_2","pr
 
 # check colinearity of data
 # creating a correlation matrix
-correlations <- cor(ePD_response_df[,3:23])
+correlations <- cor(ePD_response_df[,2:22])
 corrplot(correlations, method="circle")
 
-# run a glm- with full interactions
-ED_glm <- glm(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, family = gaussian, data = ePD_response_df) 
+ePD_response_df <- ePD_response_df[complete.cases(ePD_response_df),]
+
+# run a glm- MAXIMAL MODEL
+ED_glm_full <- glm(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, 
+              family = gaussian,
+              na.action = "na.fail",
+              data = ePD_response_df) 
 
 summary(ED_glm)
 
 # find out explanatory power
 with(summary(ED_glm), 1 - deviance/null.deviance)
 
-# check model performance - assumptions not violated 
+# check model performance - assumptions not violated - no they are not xx
 check_model(ED_glm)
+
+model_selction <- step(ED_glm, direction = "backward")
+
+# update the new model
+ED_glm_new <- glm(formula = log(median_ED + 1) ~ prop_2_3 + prop_5_3 + prop_8_1 + 
+    threat_sum, family = gaussian, data = ePD_response_df, na.action = "na.fail")
+
+# find out explanatory power
+with(summary(ED_glm_new), 1 - deviance/null.deviance)
+
+# Using anova to comapre model fits - keep full model as it has the highest explanatory power
+anova(ED_glm_new, ED_glm_full, test = "F")
+
+# create null model
+ED_null <- glm(log(median_ED + 1) ~ 1, data = ePD_response_df)
+
+anova(ED_glm_full, ED_null, test = "F")
+
+# Lastly- check model assumptions 
+check_model(ED_glm_full)
+
+# Check if intrinsic and extrintic threats respond to EDGE score
+
+# run a glm with EDGE score as the response variable- MAXIMAL MODEL
+EDGE_glm_full <- glm(log(median_EDGE + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, 
+              family = gaussian,
+              na.action = "na.fail",
+              data = ePD_response_df) 
+
+# get model summary
+summary(EDGE_glm_full)
+
+# find out explanatory power
+with(summary(EDGE_glm_full), 1 - deviance/null.deviance)
+
+# check model performance - assumptions not violated - no they are not xx
+check_model(EDGE_glm_full)
+
+# backwards stepwise model selection
+model_selction_EDGE <- step(ED_glm, direction = "backward")
+
+EDGE_glm_update <- glm(log(median_EDGE + 1) ~ prop_2_3 + prop_5_3 + prop_8_1 + threat_sum, 
+                       family = gaussian,
+                       na.action = "na.fail",
+                       data = ePD_response_df) 
+
+# get model summary
+summary(EDGE_glm_update)
+
+# find out explanatory power
+with(summary(EDGE_glm_update), 1 - deviance/null.deviance)
+
+# Compare full and updated model- USE FULL MODEL
+anova(EDGE_glm_full, EDGE_glm_update, test = "F")
+
+# Create null model
+EDGE_glm_null <- glm(log(median_EDGE + 1) ~ 1, 
+                       family = gaussian,
+                       na.action = "na.fail",
+                       data = ePD_response_df) 
+
+# compare full model to the null
+anova(EDGE_glm_full, EDGE_glm_null, test = "F")
 
 # now try glmm to see if it can explain any additional variation
 # building a mixed-effects linear logistic regression
@@ -109,46 +178,37 @@ ranef(m)
 
 print(anova(m))
 
-### Summary- don't use LMM modelling 
+### Summary- DON'T use LMM modelling 
 
-# testing for overdispersion
-overdisp_fun <- function(model) {
-    rdf <- df.residual(model)
-    rp <- residuals(model,type="pearson")
-    Pearson.chisq <- sum(rp^2)
-    prat <- Pearson.chisq/rdf
-    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
-    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
-}
-
-overdisp_fun(ED_glm)
 
 ```
 
-## Question (ii) Is the population status of priority lineages in a greater state of decline than non-priority lineages?
+## Question (ii) Does the response of population decline interact with the proportion of extrinsic (anthropogenic) threats?
 
 
 ```{r explore data, echo=TRUE}
 
 # subset data to only contain population probabilities
-priority_lineages_df <- mammals_pd_merged[,c(1,2,3,9,21,23,25,29,31,33, 48:50)]
+threat_interacts_df <- mammals_pd_merged[,c(1:3,9,14,20:37,40,49)]
 
-names(priority_lineages_df)
+names(threat_interacts_df)
 
-head(priority_lineages_df)
+head(threat_interacts_df)
 
-summary(priority_lineages_df)
+summary(threat_interacts_df)
 
-# Change order to a factor
-priority_lineages_df$Order <- as.factor(priority_lineages_df$Order)
-priority_lineages_df$priority_type <- as.factor(priority_lineages_df$priority_type)
+# Change lineage priority as threat
+threat_interacts_df$priority_type <- as.factor(threat_interacts_df$EDGE_priority)
 
 # convert prioirty values to 1's and 0's
-priority_lineages_df$EDGE_priority[priority_lineages_df$EDGE_priority == "No"] <- 0
-priority_lineages_df$EDGE_priority[priority_lineages_df$EDGE_priority == "Yes"] <- 1
+threat_interacts_df$EDGE_priority[threat_interacts_df$EDGE_priority == "No"] <- 0
+threat_interacts_df$EDGE_priority[threat_interacts_df$EDGE_priority == "Yes"] <- 1
+
+# Calculate number of occurences which are greater than 0 to sum threat data
+threat_interacts_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_2","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
 
 # change to binary operator
-priority_lineages_df$EDGE_priority <- as.numeric(priority_lineages_df$EDGE_priority)
+threat_interacts_df$EDGE_priority <- as.numeric(threat_interacts_df$EDGE_priority)
 
 
 # visulising distibutions of data
@@ -176,11 +236,11 @@ str(priority_lineages_df)
 # check for generalized inflation factors - look at colinearity  
 corvif(EDGE_priority_lineages)
 
-# some of the data follows a bimodal distiribtuion
+# glm in which EDGE or ED scores is a responds to proportion of threatened species interacts with threats
 # perform a glm fit
-priority_lineage_glm <- glm(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_uplisted + prop_downlisted + prop_stable, weights = wt, family = binomial("logit"), data = priority_lineages_df)
+threats_glm <- glm(prop_uplisted ~ assessed_threat_prop: prop_1_1 + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, family = poisson("log"), data = threat_interacts_df)
 
-summary(priority_lineage_glm)
+summary(threats_glm)
 
 priority_lineage_glm <- glm.nb(EDGE_priority ~ Prop_dec + Prop_inc + Prop_stab + prop_uplisted + prop_downlisted + prop_stable, data = priority_lineages_df)
 
