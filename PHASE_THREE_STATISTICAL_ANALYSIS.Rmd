@@ -9,7 +9,6 @@ output: html_document
 
 library(tidyverse) # data wrangling and visualization
 library(ggplot2) # data visualization
-library(GGally) # visulizing scatterplots
 library(performance) # check model outputs
 library(lme4) # analysis for logistic regressions and mixed-effects modelling
 library(corrplot) # creating a correlation matrix
@@ -21,7 +20,10 @@ library(knitr) # beautifying tables
 library(MASS) # model selection using drop terms
 library(pscl) # zero-inflation regression models
 library(MuMIn) # model comparison
-library(DHARMa)
+library(DHARMa) # model critism plots
+library(effects) # extracting model outputs
+library(jtools)
+library(webshot)
 
 ```
 
@@ -113,7 +115,7 @@ ED_glm_new <- glm(formula = log(median_ED + 1) ~ prop_2_3 + prop_5_3 + prop_8_1 
 # find out explanatory power
 with(summary(ED_glm_new), 1 - deviance/null.deviance)
 
-# Using anova to comapre model fits - keep full model as it has the highest explanatory power
+# Using anova to compare model fits - keep full model as it has the highest explanatory power
 anova(ED_glm_new, ED_glm_full, test = "F")
 
 # create null model
@@ -123,6 +125,36 @@ anova(ED_glm_full, ED_null, test = "F")
 
 # Lastly- check model assumptions 
 check_model(ED_glm_full)
+
+### create tabular format or results
+tab_model(file = "ED_glm_full.html",
+  ED_glm_full,
+  CSS = list(
+    css.depvarhead = 'color: red;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: blue;'
+  )
+)
+
+webshot("ED_glm_full.html", "D_glm_full.png")
+
+# Plotting the response of ED
+# pull out the significant effects of the model
+ED_effects_5_3 <- effects::effect(term = c("prop_5_3"), mod = EDGE_glm_full) %>%
+  # turn it into a dataframe
+  as.data.frame()
+# Note that at this point, you can also back-transform your values so looking at actual ED and EDGE scores
+# set up a ggplot
+ggplot(ED_effects_5_3) + 
+  # plot the average slope (fit) for each land use
+  # I've used automatic colouring by land use but you can also specify what colours you want for each land use
+  geom_line(aes(x = prop_5_3, y = fit)) +
+  # add shading for the confidence intervals for each slope
+  geom_ribbon(aes(x = prop_5_3, ymin = lower, ymax = upper), alpha = 0.2) +
+  # add the x and y label
+  labs(x = "Proportion of families threatened by logging" ,y = "log(Median ED)")
+
 
 # Check if intrinsic and extrintic threats respond to EDGE score
 
@@ -167,6 +199,20 @@ EDGE_glm_null <- glm(log(median_EDGE + 1) ~ 1,
 # compare full model to the null
 anova(EDGE_glm_full, EDGE_glm_null, test = "F")
 
+### plotting outputs for EDGE scores and extrinsic threats
+### create tabular format or results
+tab_model(file = "EDGE_glm_full.html",
+  EDGE_glm_full,
+  CSS = list(
+    css.depvarhead = 'color: red;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: blue;'
+  )
+)
+
+webshot("EDGE_glm_full.html", "EDGE_glm_full.png")
+
 # now try glmm to see if it can explain any additional variation
 # building a mixed-effects linear logistic regression
 m <- lmer(log(median_ED +1) ~ log(bodysize_mean +1) + log(Gen_length_days +1)  + threat_sum + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + (1 | Order), data = ePD_response_df)
@@ -181,6 +227,56 @@ print(anova(m))
 
 ### Summary- DON'T use LMM modelling 
 
+### Plotting and predicting ED and EDGE scores 
+
+# Plotting the response of ED and EDGE
+# pull out the significant effects of the model
+ED_effects_8_1 <- effects::effect(term = c("prop_8_1"), mod = EDGE_glm_full) %>%
+  # turn it into a dataframe
+  as.data.frame()
+# Note that at this point, you can also back-transform your values so looking at actual ED and EDGE scores
+
+# Plotting the response of ED and EDGE
+# pull out the significant effects of the model
+ED_effects_threats <- effects::effect(term = c("threat_sum"), mod = EDGE_glm_full) %>%
+  # turn it into a dataframe
+  as.data.frame()
+# Note that at this point, you can also back-transform your values so looking at actual ED and EDGE scores
+
+# set up a ggplot
+ggplot(ED_effects_5_3) + 
+  # plot the average slope (fit) for each land use
+  # I've used automatic colouring by land use but you can also specify what colours you want for each land use
+  geom_line(aes(x = prop_5_3, y = fit)) +
+  # add shading for the confidence intervals for each slope
+  geom_ribbon(aes(x = prop_5_3, ymin = lower, ymax = upper), alpha = 0.2) +
+  # add the x and y label
+  labs(x = "Proportion of families threatened by invasive species" ,y = "log(Median ED)")
+
+
+#######################################
+
+ED_effects <- allEffects(ED_glm_full)
+
+plot_model(ED_glm, type = "pred", terms = c("prop_8_1", "prop_5_3"))
+ 
+sjPlot::sjp.glm(ED_glm_full, type = "pred", vars = c("prop_8_1", "prop_5_3"), show.ci = T, facet.grid = T)
+
+summ(ED_glm_full)
+
+
+tab_model(ED_glm_full, show.intercept = TRUE)
+
+# first save table to html file
+tab_model(ED_glm_full, file = "plot.html")
+
+# then take this html file and make .png file
+webshot("plot.html", "plot.png")
+
+effect_plot(ED_glm_full, pred = threat_sum, interval = TRUE)
+
+interact_plo
+
 
 ```
 
@@ -190,7 +286,7 @@ print(anova(m))
 ```{r conservation staus, echo=TRUE}
 
 # subset data to only contain population probabilities
-con_status_interacts_df <- mammals_pd_merged[,c(1,3,9,14,21,23,39,49)]
+con_status_interacts_df <- mammals_pd_merged[,c(1,3,9,11,13,14,21,23,25,39,49)]
 
 names(con_status_interacts_df)
 
@@ -217,6 +313,8 @@ str(con_status_interacts_df)
 # glm in which EDGE or ED scores is a responds to proportion of threatened species interacts with threats
 # perform a glm fit
 con_status_uplisted_glm <- glm(prop_uplisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
+
+summary(con_status_stable_glm)
 
 # get summary of model output
 summary(con_status_uplisted_glm)
@@ -246,6 +344,12 @@ con_status_uplisted_glm_null <- glm(prop_uplisted ~ 1, family = quasibinomial("l
 # use anova to compare
 anova(con_status_uplisted_glm_null, con_status_uplisted_glm, test = "F")
 
+############# exploring stable populations
+
+con_status_stable_glm <- glm(Prop_stab ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
+
+summary(con_status_stable_glm)
+
 # looking at how the interaction between ED score and proporiton of threatened species predicts conservation status downlistings (improved conservation status)
 con_status_downlisted_glm <- glm(prop_downlisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
 
@@ -264,6 +368,16 @@ con_status_downlisted_glm_null <- glm(prop_downlisted ~ 1, family = quasibinomia
 # compare between null and full model
 anova(con_status_downlisted_glm, con_status_downlisted_glm_null, test = "F")
 
+# LOOKING AT CONSERVATION STATUS THAT HAVE BEEN STABLE
+con_status_stable_glm <- glm(prop_stable ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
+
+summary(con_status_stable_glm)
+
+check_model(con_status_stable_glm)
+
+with(summary(con_status_stable_glm), 1 - deviance/null.deviance)
+
+
 # present models in nice format- for tomorrow
 tab_model(m_ri, show.aic = T)
 
@@ -274,19 +388,19 @@ tab_model(m_ri, show.aic = T)
 ```{r population trend analysis, echo=TRUE}
 
 #subset threat data
-pop_status_df <- mammals_pd_merged[,c(1,3,9,42:46,49)]
+pop_status_df <- mammals_pd_merged[,c(1,3,9,11,13,42:46,47,49)]
 
 # Remove all NA's from columns
 pop_status_df <- pop_status_df[complete.cases(pop_status_df),]
 
 # visulising distibutions of data
 par(mfrow=c(4,2))
-for(i in 2:9) {
+for(i in 2:11) {
     hist(pop_status_df[,i], main=names(pop_status_df)[i])
 }
 
 # creating a correlation matrix - no correlations between variables. Can therefore dismiss the assumption of non-independence
-correlations <- cor(pop_status_df[,2:9])
+correlations <- cor(pop_status_df[,2:10])
 corrplot(correlations, method="circle")
 
 # glm in which EDGE or ED scores is a responds to proportion of threatened species interacts with threats predict popualtion decline
@@ -311,6 +425,13 @@ pop_status_dec_glm_null <- glm(Prop_dec ~ 1, family = quasibinomial("logit"), da
 # compare full and reduced model
 anova(pop_status_dec_glm, pop_status_dec_glm_null, test = "F")
 
+# different interpreation of model different interaction looking at if the interaction between proportion of LC/NT species predicts population declines
+pop_status_dec_glm_DD <- glm(Prop_dec ~ LC_NT_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
+
+summary(pop_status_dec_glm_DD)
+
+#################################################
+
 # now look at glm for population increases
 pop_status_inc_glm <- glm(Prop_inc ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
 
@@ -334,5 +455,10 @@ anova(pop_status_inc_glm, pop_status_inc_glm_null, test = "F")
 
 # compare full and reduced model
 anova(pop_status_dec_glm, pop_status_dec_glm_null, test = "F")
+
+### Populations stable 
+pop_status_stab_glm <- glm(Prop_stab ~ LC_NT_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
+
+summary(pop_status_stab_glm)
 
 ```
