@@ -141,10 +141,15 @@ webshot("ED_glm_full.html", "D_glm_full.png")
 
 # Plotting the response of ED
 # pull out the significant effects of the model
+
 ED_effects_5_3 <- effects::effect(term = c("prop_5_3"), mod = EDGE_glm_full) %>%
   # turn it into a dataframe
   as.data.frame()
 # Note that at this point, you can also back-transform your values so looking at actual ED and EDGE scores
+
+# set image to save in directory
+png(filename = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Intrinsic and extrinsic threatsthreat_5_3_predictor_ED.png", units = "in", width = 4, height = 4, res = 300)
+
 # set up a ggplot
 ggplot(ED_effects_5_3) + 
   # plot the average slope (fit) for each land use
@@ -154,6 +159,8 @@ ggplot(ED_effects_5_3) +
   geom_ribbon(aes(x = prop_5_3, ymin = lower, ymax = upper), alpha = 0.2) +
   # add the x and y label
   labs(x = "Proportion of families threatened by logging" ,y = "log(Median ED)")
+
+dev.off()
 
 
 # Check if intrinsic and extrintic threats respond to EDGE score
@@ -344,6 +351,20 @@ con_status_uplisted_glm_null <- glm(prop_uplisted ~ 1, family = quasibinomial("l
 # use anova to compare
 anova(con_status_uplisted_glm_null, con_status_uplisted_glm, test = "F")
 
+### create tabular format or results
+tab_model(file = "con_status_uplisted_glm.html",
+  con_status_uplisted_glm,
+  CSS = list(
+    css.depvarhead = 'color: red;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: blue;'
+  )
+)
+
+webshot("con_status_uplisted_glm.html", "con_status_uplisted_glm.png")
+
+
 ############# exploring stable populations
 
 con_status_stable_glm <- glm(Prop_stab ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
@@ -367,6 +388,19 @@ con_status_downlisted_glm_null <- glm(prop_downlisted ~ 1, family = quasibinomia
 
 # compare between null and full model
 anova(con_status_downlisted_glm, con_status_downlisted_glm_null, test = "F")
+
+### create tabular format or results
+tab_model(file = "con_status_downlisted_glm.html",
+  con_status_uplisted_glm,
+  CSS = list(
+    css.depvarhead = 'color: red;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: blue;'
+  )
+)
+
+webshot("con_status_downlisted_glm.html", "con_status_downlisted_glm.png")
 
 # LOOKING AT CONSERVATION STATUS THAT HAVE BEEN STABLE
 con_status_stable_glm <- glm(prop_stable ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
@@ -425,6 +459,19 @@ pop_status_dec_glm_null <- glm(Prop_dec ~ 1, family = quasibinomial("logit"), da
 # compare full and reduced model
 anova(pop_status_dec_glm, pop_status_dec_glm_null, test = "F")
 
+### create tabular format or results
+tab_model(file = "pop_status_dec_glm.html",
+  pop_status_dec_glm,
+  CSS = list(
+    css.depvarhead = 'color: red;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: blue;'
+  )
+)
+
+webshot("pop_status_dec_glm.html", "pop_status_dec_glm.png")
+
 # different interpreation of model different interaction looking at if the interaction between proportion of LC/NT species predicts population declines
 pop_status_dec_glm_DD <- glm(Prop_dec ~ LC_NT_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
 
@@ -460,5 +507,18 @@ anova(pop_status_dec_glm, pop_status_dec_glm_null, test = "F")
 pop_status_stab_glm <- glm(Prop_stab ~ LC_NT_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
 
 summary(pop_status_stab_glm)
+
+### create tabular format or results
+tab_model(file = "pop_status_inc_glm.html",
+  pop_status_inc_glm,
+  CSS = list(
+    css.depvarhead = 'color: red;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: blue;'
+  )
+)
+
+webshot("pop_status_inc_glm.html", "pop_status_inc_glm.png")
 
 ```
