@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 
+library(dplyr) # data visualization
 library(tidyverse) # data wrangling and visualization
 library(ggplot2) # data visualization
 library(performance) # check model outputs
@@ -22,8 +23,8 @@ library(pscl) # zero-inflation regression models
 library(MuMIn) # model comparison
 library(DHARMa) # model critism plots
 library(effects) # extracting model outputs
-library(jtools)
-library(webshot)
+library(jtools) # 
+library(webshot) # extract SJplots - for tables
 
 ```
 
@@ -31,11 +32,30 @@ library(webshot)
 
 ```{r load data, echo=TRUE}
 
-# Just save priority EDGE lineage list and PD_mammal_merged list as essential for analysis: mammals_pd_merged, EDGE_priority_lineages, ePD_priority_lineages (final datasets so far!!!)
+# Just save priority EDGE lineage list and PD_mammal_merged list as essential for analysis: mammals_pd_merged, EDGE_priority_lineages, ePD_priority_lineages (final datasets so far!!)
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
 
 # load dataout datasets with both Upham and Gumbs datasets
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/ePD_scores_ALL.RData")
+
+```
+
+# Summary statistics of entirly threatened lineages
+```{r threatened lienages}
+
+# subset famileis which entire population are threatened with extinction
+families_threatened <- mammals_pd_merged[which(mammals_pd_merged$assessed_threat_prop == 1),]
+
+# select important columns
+families_threatened <- families_threatened[,c(1:3,7,9,14)]
+
+# sum ePD loss of these families (384 MY)
+monotypic_spp <- subset(families_threatened, families_threatened$richness ==1)
+
+# sum ePD of monotypic species (174 MY)
+sum(monotypic_spp$Median.exPD)
+
+
 
 ```
 
@@ -48,16 +68,15 @@ You can also embed plots, for example:
 # Spearmans's rank correaltion between imputted an non-imputed datasets
 cor.test(ex_PD_full$Median.exPD, ex_PD_full$Median.ePD.UPHAM, method = "spearman")
 
-# subset and log variables
-ePD_spp_rich_df <- mammals_pd_merged[,c(3,14,39)]
-ePD_spp_rich_df$log_richness <- log(ePD_spp_rich_df$richness)
-ePD_spp_rich_df$log_ePD <- log(ePD_spp_rich_df$Median.exPD)
-
+# subset variables for analysis
+ePD_spp_rich_df <- mammals_pd_merged[,c(3,14,39,49)]
 
 # Spearman's rank correlation between species richness and ePD
 cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$Median.exPD, method = "spearman")
 
 cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$median_EDGE, method = "spearman")
+
+cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$median_ED, method = "spearman")
 
 
 ```
@@ -66,51 +85,54 @@ cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$median_EDGE, method = "spearm
 ```{r intrinsic and extrinsic threats, echo=TRUE}
 
 # 
-ePD_response_df <- mammals_pd_merged[,c(1,3:4,9,14,26:39,48:49)]
+ePD_response_df <- mammals_pd_merged[,c(1,2,3:4,9,14,26:39,48:49)]
 
 # visulising distributions of data
 # distribution of response variable is poission
 par(mfrow=c(3:4))
-for(i in 3:27) {
+for(i in 2:23) {
     hist(ePD_response_df[,i], main=names(ePD_response_df)[i])
 }
 
-# log transforming variables
-ePD_response_df$ePD_log <- log(ePD_response_df$Median.exPD + 1)
-ePD_response_df$ED_log <- log(ePD_response_df$median_ED + 1)
-ePD_response_df$bodysize_log <- log(ePD_response_df$bodysize_mean + 1)
-ePD_response_df$gensize_log <- log(ePD_response_df$Gen_length_days + 1)
-
 # Calculate number of occurences which are greater than 0 to sum threat data
-ePD_response_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_2","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
+ePD_response_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_1","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
 
+# create cum sum of threats as a proportion
+ePD_response_df <- ePD_response_df %>% 
+  group_by(Family) %>% 
+  mutate(threat_sum_prop = threat_sum/6)
 
 # check colinearity of data
 # creating a correlation matrix
-correlations <- cor(ePD_response_df[,2:22])
+correlations <- cor(ePD_response_df[,2:23])
 corrplot(correlations, method="circle")
 
 ePD_response_df <- ePD_response_df[complete.cases(ePD_response_df),]
 
 # run a glm- MAXIMAL MODEL
-ED_glm_full <- glm(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, 
+ED_glm_full <- glm(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_1 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum_prop, 
               family = gaussian,
               na.action = "na.fail",
               data = ePD_response_df) 
 
-summary(ED_glm)
+summary(ED_glm_full)
+
+######## scrape code
+ED_glm_full$coefficients 
+exp(2.798128062)
+########
 
 # find out explanatory power
-with(summary(ED_glm), 1 - deviance/null.deviance)
+with(summary(ED_glm_full), 1 - deviance/null.deviance)
 
 # check model performance - assumptions not violated - no they are not xx
 check_model(ED_glm)
 
-model_selction <- step(ED_glm, direction = "backward")
+model_selction <- step(ED_glm_full, direction = "backward")
 
 # update the new model
 ED_glm_new <- glm(formula = log(median_ED + 1) ~ prop_2_3 + prop_5_3 + prop_8_1 + 
-    threat_sum, family = gaussian, data = ePD_response_df, na.action = "na.fail")
+    threat_sum_prop, family = gaussian, data = ePD_response_df, na.action = "na.fail")
 
 # find out explanatory power
 with(summary(ED_glm_new), 1 - deviance/null.deviance)
@@ -161,12 +183,13 @@ ggplot(ED_effects_5_3) +
   labs(x = "Proportion of families threatened by logging" ,y = "log(Median ED)")
 
 dev.off()
+dev.new()
 
 
 # Check if intrinsic and extrintic threats respond to EDGE score
 
 # run a glm with EDGE score as the response variable- MAXIMAL MODEL
-EDGE_glm_full <- glm(log(median_EDGE + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, 
+EDGE_glm_full <- glm(log(median_EDGE + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_1 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, 
               family = gaussian,
               na.action = "na.fail",
               data = ePD_response_df) 
@@ -211,20 +234,42 @@ anova(EDGE_glm_full, EDGE_glm_null, test = "F")
 tab_model(file = "EDGE_glm_full.html",
   EDGE_glm_full,
   CSS = list(
-    css.depvarhead = 'color: red;',
+    css.depvarhead = 'color: black;',
     css.centeralign = 'text-align: left;', 
     css.firsttablecol = 'font-weight: bold;', 
-    css.summary = 'color: blue;'
+    css.summary = 'color: black;'
   )
 )
 
 webshot("EDGE_glm_full.html", "EDGE_glm_full.png")
 
+plot_model(EDGE_glm_full, type = "pred", terms = "prop_8_1")
+
 # now try glmm to see if it can explain any additional variation
 # building a mixed-effects linear logistic regression
-m <- lmer(log(median_ED +1) ~ log(bodysize_mean +1) + log(Gen_length_days +1)  + threat_sum + prop_2_2 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + (1 | Order), data = ePD_response_df)
+ePD_response_df$Order <- factor(ePD_response_df$Order)
+
+m <- lmer(log(median_EDGE +1) ~ log(Gen_length_days +1)  + threat_sum + prop_2_1 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + (1 | Order), data = ePD_response_df)
 
 summary(m)
+
+StatisticalModels::R2GLMER(m)
+
+
+print(summary(m),correlation=FALSE)
+
+tab_model(m)
+
+confint(m)
+ranef(m)
+
+print(m)
+
+m_null <- lmer(log(median_ED +1) ~ 1 + (1 | Order), REML = FALSE, data = ePD_response_df)
+
+summary(m_null)
+
+anova(m, m_null)
 
 confint(m)
 
@@ -282,9 +327,6 @@ webshot("plot.html", "plot.png")
 
 effect_plot(ED_glm_full, pred = threat_sum, interval = TRUE)
 
-interact_plo
-
-
 ```
 
 ## Question (ii) How does the inteaction between EDGE/ED score with proportion of threatened species predict conservation status?
@@ -293,7 +335,7 @@ interact_plo
 ```{r conservation staus, echo=TRUE}
 
 # subset data to only contain population probabilities
-con_status_interacts_df <- mammals_pd_merged[,c(1,3,9,11,13,14,21,23,25,39,49)]
+con_status_interacts_df <- mammals_pd_merged[,c(1:3,9,11,13,14,21,23,25,39,49)]
 
 names(con_status_interacts_df)
 
@@ -321,7 +363,35 @@ str(con_status_interacts_df)
 # perform a glm fit
 con_status_uplisted_glm <- glm(prop_uplisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
 
-summary(con_status_stable_glm)
+summary(con_status_uplisted_glm)
+
+
+####################################### GLMM scrap code
+con_status_interacts_df$Order <- factor(con_status_interacts_df$Order)
+
+test <- glmer(prop_uplisted ~ assessed_threat_prop*median_ED + (1|Order), family = binomial, data = con_status_interacts_df)
+
+check_model(test)
+
+test_null <- glmer(prop_uplisted ~ (1|Order), family = binomial, data = con_status_interacts_df)
+
+anova(test, test_null)
+
+check_model(test_null)
+
+StatisticalModels::R2GLMER(test)
+
+summary(test)
+
+print(ranef(test))
+
+check_model(test)
+###############################################
+
+# Just fitting EDGE score as a predictor
+con_status_uplisted_glm_EDGE <- glm(prop_uplisted ~ median_EDGE, family = quasibinomial("logit"), data = con_status_interacts_df)
+
+summary(con_status_uplisted_glm_EDGE)
 
 # get summary of model output
 summary(con_status_uplisted_glm)
@@ -371,8 +441,14 @@ con_status_stable_glm <- glm(Prop_stab ~ assessed_threat_prop*median_ED, family 
 
 summary(con_status_stable_glm)
 
+check_model()
+
 # looking at how the interaction between ED score and proporiton of threatened species predicts conservation status downlistings (improved conservation status)
 con_status_downlisted_glm <- glm(prop_downlisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
+
+con_status_downlisted_glm_EDGE <- glm(prop_downlisted ~ median_EDGE, family = quasibinomial("logit"), data = con_status_interacts_df)
+
+summary(con_status_downlisted_glm_EDGE)
 
 # get model summary
 summary(con_status_downlisted_glm)
@@ -391,7 +467,7 @@ anova(con_status_downlisted_glm, con_status_downlisted_glm_null, test = "F")
 
 ### create tabular format or results
 tab_model(file = "con_status_downlisted_glm.html",
-  con_status_uplisted_glm,
+  con_status_downlisted_glm,
   CSS = list(
     css.depvarhead = 'color: red;',
     css.centeralign = 'text-align: left;', 
@@ -411,7 +487,6 @@ check_model(con_status_stable_glm)
 
 with(summary(con_status_stable_glm), 1 - deviance/null.deviance)
 
-
 # present models in nice format- for tomorrow
 tab_model(m_ri, show.aic = T)
 
@@ -422,24 +497,25 @@ tab_model(m_ri, show.aic = T)
 ```{r population trend analysis, echo=TRUE}
 
 #subset threat data
-pop_status_df <- mammals_pd_merged[,c(1,3,9,11,13,42:46,47,49)]
+pop_status_df <- mammals_pd_merged[,c(1:3,9,11,13,39,42:46,47,49)]
 
 # Remove all NA's from columns
 pop_status_df <- pop_status_df[complete.cases(pop_status_df),]
 
 # visulising distibutions of data
 par(mfrow=c(4,2))
-for(i in 2:11) {
+for(i in 2:13) {
     hist(pop_status_df[,i], main=names(pop_status_df)[i])
 }
 
 # creating a correlation matrix - no correlations between variables. Can therefore dismiss the assumption of non-independence
-correlations <- cor(pop_status_df[,2:10])
+correlations <- cor(pop_status_df[,2:13])
 corrplot(correlations, method="circle")
 
 # glm in which EDGE or ED scores is a responds to proportion of threatened species interacts with threats predict popualtion decline
 # perform a glm fit
 pop_status_dec_glm <- glm(Prop_dec ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
+
 
 # get model summary
 summary(pop_status_dec_glm)
@@ -472,13 +548,31 @@ tab_model(file = "pop_status_dec_glm.html",
 
 webshot("pop_status_dec_glm.html", "pop_status_dec_glm.png")
 
-# different interpreation of model different interaction looking at if the interaction between proportion of LC/NT species predicts population declines
-pop_status_dec_glm_DD <- glm(Prop_dec ~ LC_NT_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
-
-summary(pop_status_dec_glm_DD)
-
 #################################################
+### Look at EDGE score as the response, but remove threatened species 
+pop_status_dec_glm_EDGE <- glm(Prop_dec ~ median_EDGE, family = quasibinomial("logit"), data = pop_status_df)
 
+# get model summary
+summary(pop_status_dec_glm_EDGE)
+
+# get explanatory power
+with(summary(pop_status_dec_glm_EDGE), 1 - deviance/null.deviance)
+
+# test for overdispersion
+overdisp_fun(pop_status_dec_glm)
+
+# check model performance
+check_model(pop_status_dec_glm_EDGE)
+
+# create null model
+pop_status_dec_glm_null <- glm(Prop_dec ~ 1, family = quasibinomial("logit"), data = pop_status_df)
+
+# compare full and reduced model
+anova(pop_status_dec_glm_EDGE, pop_status_dec_glm_null, test = "F")
+
+```
+
+```{r pop inc, echo=TRUE}
 # now look at glm for population increases
 pop_status_inc_glm <- glm(Prop_inc ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
 
