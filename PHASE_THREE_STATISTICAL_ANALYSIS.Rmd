@@ -38,6 +38,27 @@ load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low 
 # load dataout datasets with both Upham and Gumbs datasets
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/ePD_scores_ALL.RData")
 
+# match up Order with family##############
+Order <- read.csv(file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/Mammal_orders.csv")
+
+Order$Order <- str_to_title(Order$Order)
+Order$Family <- str_to_title(Order$Family)
+
+Order <- Order %>% 
+  dplyr::select(Family, Order, species) %>% 
+  group_by(Order, Family) %>% 
+  summarise(richness = sum(length(Order)))
+
+t <- merge(mammals_pd_merged, Order,  by = "Family", all.x = TRUE)
+
+t <- t[,c(1,3:50)]
+
+t <- t %>%
+  dplyr::select(Order, everything())
+
+# insert family into NA's
+mammals_pd_merged <- t
+########################################
 ```
 
 # Summary statistics of entirly threatened lineages
@@ -55,7 +76,17 @@ monotypic_spp <- subset(families_threatened, families_threatened$richness ==1)
 # sum ePD of monotypic species (174 MY)
 sum(monotypic_spp$Median.exPD)
 
+# caculate conservation staus for mammals in 2008 to see what uplisting there have been since then
+uplistming_sub <- RL_change_df[(RL_change_df$Family %in% families_threatened$Family),]
 
+# three families weren't in intial 2008 RL assessment - don't include these as I think they were already highlighted for importance such as Lipotidae (river dolphin)
+list(setdiff(families_threatened$Family,uplistming_sub$Family))
+
+# 10 families uplisted since 2008 - 40% of families have had uplistings since 2008
+sum(uplistming_sub$prop_uplisted > 0)
+
+# 5 families have have become fully threatened since 2008 (20%)
+sum(uplistming_sub$prop_uplisted == 1)
 
 ```
 
@@ -71,13 +102,50 @@ cor.test(ex_PD_full$Median.exPD, ex_PD_full$Median.ePD.UPHAM, method = "spearman
 # subset variables for analysis
 ePD_spp_rich_df <- mammals_pd_merged[,c(3,14,39,49)]
 
-# Spearman's rank correlation between species richness and ePD
-cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$Median.exPD, method = "spearman")
+# Spearman's rank correlation between species richness and ePD (rs = 0.67; p < 0.001; N = 160)
+cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$Median.exPD, method = "spearman") 
 
+# plot for species richness and ePD loss
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Imperilled PD/ePDloss_richness_FINAL.tiff", units = "in", width = 5, height = 4, res = 300)
+
+ggplot(ePD_spp_rich_df, aes(x=richness, y=Median.exPD)) + geom_point(size=2, shape=20) +
+  geom_smooth(method=lm, se = FALSE, color = "red") +
+  scale_y_log10() +
+  scale_x_log10() +
+  theme_bw(base_size = 16) +
+  labs(y="(Log) Median ePD Loss", x= "(Log) Richness")
+
+dev.off()
+
+# Spearman's rank correaltion for EDGE score (rs = -0.61; p < 0.001; N = 160)
 cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$median_EDGE, method = "spearman")
 
+# scatterplot for EDGE score and spp richness
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Imperilled PD/EDGE_richness_FINAL.tiff", units = "in", width = 5, height = 4, res = 300)
+
+ggplot(ePD_spp_rich_df, aes(x=richness, y=median_EDGE)) + geom_point(size=2, shape=20) +
+  geom_smooth(method=lm, se = FALSE, color = "red") +
+  scale_y_log10() +
+  scale_x_log10() +
+  theme_bw(base_size = 16) +
+  labs(y="(Log) Median EDGE Score", x= "(Log) Richness")
+
+dev.off()
+
+# Spearman's rank correaltion for ED scores (rs = -0.73; p < 0.001; N = 160)
 cor.test(ePD_spp_rich_df$richness, ePD_spp_rich_df$median_ED, method = "spearman")
 
+# scatterplot for ED and species richness
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Imperilled PD/ED_richness_FINAL.tiff", units = "in", width = 5, height = 4, res = 300)
+
+ggplot(ePD_spp_rich_df, aes(x=richness, y=median_ED)) + geom_point(size=2, shape=20) +
+  geom_smooth(method=lm, se = FALSE, color = "red") +
+  scale_y_log10() +
+  scale_x_log10() +
+  theme_bw(base_size = 16) +
+  labs(y="(Log) Median ED Score", x= "(Log) Richness")
+
+dev.off()
 
 ```
 ## Question (i) How do intrinsic and extrinsic threats predict ED?
@@ -104,7 +172,7 @@ ePD_response_df <- ePD_response_df %>%
 
 # check colinearity of data
 # creating a correlation matrix
-correlations <- cor(ePD_response_df[,2:23])
+correlations <- cor(ePD_response_df[,3:24])
 corrplot(correlations, method="circle")
 
 ePD_response_df <- ePD_response_df[complete.cases(ePD_response_df),]
@@ -117,22 +185,21 @@ ED_glm_full <- glm(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_
 
 summary(ED_glm_full)
 
-######## scrape code
-ED_glm_full$coefficients 
-exp(2.798128062)
-########
+tab_model(ED_glm_full)
 
 # find out explanatory power
 with(summary(ED_glm_full), 1 - deviance/null.deviance)
 
 # check model performance - assumptions not violated - no they are not xx
-check_model(ED_glm)
+check_model(ED_glm_full)
 
 model_selction <- step(ED_glm_full, direction = "backward")
 
 # update the new model
 ED_glm_new <- glm(formula = log(median_ED + 1) ~ prop_2_3 + prop_5_3 + prop_8_1 + 
     threat_sum_prop, family = gaussian, data = ePD_response_df, na.action = "na.fail")
+
+tab_model(ED_glm_new)
 
 # find out explanatory power
 with(summary(ED_glm_new), 1 - deviance/null.deviance)
@@ -149,45 +216,31 @@ anova(ED_glm_full, ED_null, test = "F")
 check_model(ED_glm_full)
 
 ### create tabular format or results
-tab_model(file = "ED_glm_full.html",
+tab_model(file = "ED_glm_table.html",
   ED_glm_full,
   CSS = list(
-    css.depvarhead = 'color: red;',
+    css.depvarhead = 'color: black;',
     css.centeralign = 'text-align: left;', 
     css.firsttablecol = 'font-weight: bold;', 
-    css.summary = 'color: blue;'
+    css.summary = 'color: black;'
   )
 )
 
-webshot("ED_glm_full.html", "D_glm_full.png")
+webshot("ED_glm_table.html", "ED_glm_table.png")
 
 # Plotting the response of ED
 # pull out the significant effects of the model
 
-ED_effects_5_3 <- effects::effect(term = c("prop_5_3"), mod = EDGE_glm_full) %>%
-  # turn it into a dataframe
-  as.data.frame()
-# Note that at this point, you can also back-transform your values so looking at actual ED and EDGE scores
 
-# set image to save in directory
-png(filename = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Intrinsic and extrinsic threatsthreat_5_3_predictor_ED.png", units = "in", width = 4, height = 4, res = 300)
 
-# set up a ggplot
-ggplot(ED_effects_5_3) + 
-  # plot the average slope (fit) for each land use
-  # I've used automatic colouring by land use but you can also specify what colours you want for each land use
-  geom_line(aes(x = prop_5_3, y = fit)) +
-  # add shading for the confidence intervals for each slope
-  geom_ribbon(aes(x = prop_5_3, ymin = lower, ymax = upper), alpha = 0.2) +
-  # add the x and y label
-  labs(x = "Proportion of families threatened by logging" ,y = "log(Median ED)")
+plot_model(ED_glm_full, type = "pred", terms = c("prop_2_3", "prop_5_3", "prop_8_1"))
 
-dev.off()
-dev.new()
+plot_grid(p)
+
+```
 
 
 # Check if intrinsic and extrintic threats respond to EDGE score
-
 # run a glm with EDGE score as the response variable- MAXIMAL MODEL
 EDGE_glm_full <- glm(log(median_EDGE + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_1 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum, 
               family = gaussian,
@@ -231,7 +284,7 @@ anova(EDGE_glm_full, EDGE_glm_null, test = "F")
 
 ### plotting outputs for EDGE scores and extrinsic threats
 ### create tabular format or results
-tab_model(file = "EDGE_glm_full.html",
+tab_model(file = "EDGE_glm_table.html",
   EDGE_glm_full,
   CSS = list(
     css.depvarhead = 'color: black;',
@@ -241,7 +294,7 @@ tab_model(file = "EDGE_glm_full.html",
   )
 )
 
-webshot("EDGE_glm_full.html", "EDGE_glm_full.png")
+webshot("EDGE_glm_table.html", "EDGE_glm_table.png")
 
 plot_model(EDGE_glm_full, type = "pred", terms = "prop_8_1")
 
@@ -249,9 +302,11 @@ plot_model(EDGE_glm_full, type = "pred", terms = "prop_8_1")
 # building a mixed-effects linear logistic regression
 ePD_response_df$Order <- factor(ePD_response_df$Order)
 
-m <- lmer(log(median_EDGE +1) ~ log(Gen_length_days +1)  + threat_sum + prop_2_1 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + (1 | Order), data = ePD_response_df)
+m <- lmer(log(median_ED +1) ~ log(Gen_length_days +1)  + threat_sum + prop_2_1 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + (1 | Order), data = ePD_response_df)
 
 summary(m)
+
+check_model(m)
 
 StatisticalModels::R2GLMER(m)
 
@@ -312,7 +367,7 @@ ED_effects <- allEffects(ED_glm_full)
 
 plot_model(ED_glm, type = "pred", terms = c("prop_8_1", "prop_5_3"))
  
-sjPlot::sjp.glm(ED_glm_full, type = "pred", vars = c("prop_8_1", "prop_5_3"), show.ci = T, facet.grid = T)
+plot_model(ED_glm_full, type = "pred", vars = c("prop_8_1", "prop_5_3"), show.ci = T, facet.grid = T)
 
 summ(ED_glm_full)
 
@@ -614,5 +669,24 @@ tab_model(file = "pop_status_inc_glm.html",
 )
 
 webshot("pop_status_inc_glm.html", "pop_status_inc_glm.png")
+
+```
+
+# Summary data for EDGE lineages
+```{r priority lineages, echo=TRUE}
+
+# number of EDGE lineages - 5
+sum(EDGE_priority_lineages$no_DD_NE_prop > 0.5)
+
+# percentage of mammals that are over 50% DD_NE threshold
+(5/80)*100
+
+# Get lengths of each priority lineage list 
+sum(lengths(regmatches(EDGE_priority_lineages$priority_type, gregexpr("Watchlist lineage", EDGE_priority_lineages$priority_type))))
+
+priority_sub <- EDGE_priority_lineages[c(EDGE_priority_lineages$priority_type == "Priority lineage"),]
+
+# Calculate number of occurences which are greater than 0 to sum threat data
+priority_sub$threat_sum <- apply(priority_sub[,c("prop_1_1","prop_2_2","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
 
 ```
