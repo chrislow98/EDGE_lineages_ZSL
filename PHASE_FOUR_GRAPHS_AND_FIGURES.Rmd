@@ -1,0 +1,46 @@
+---
+title: 'PHASE FOUR: GRAPHS AND FIGURES'
+author: "Chris Low"
+date: "13/09/2021"
+output: html_document
+---
+
+```{r load packages, echo=TRUE}
+
+library(ggplot2) # graphical visualization
+library(dplyr) # data manipulations
+library(viridis) # 
+library(hrbrthemes) # colour themes
+
+```
+
+
+## Creating a density plot to explore DD of species across taxonomic groups
+```{r DD/NE, include=FALSE}
+
+# load in packages
+DD_NE_density <- read.csv(file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/taxonomic_summary.csv")
+
+theme_set(theme_bw())
+
+p <- DD_NE_density %>%
+  ggplot( aes(x=no_DD_NE_prop, fill = Taxonomic_group)) +
+  geom_histogram(color = "black", alpha=0.7, binwidth = 0.1) + 
+  facet_wrap(~Taxonomic_group) +
+  theme_ipsum() +
+  labs(x = "Proportion of DD and NE mammalian families", y = "Number of mammalian families") +
+    theme(axis.text = element_text(face = "bold"),
+      axis.title.y = element_text(size = 12, hjust = 0.5, face = "bold"),
+      axis.title.x = element_text(size = 12, hjust = 0.5, face = "bold"),
+      strip.text.x = element_blank(),
+      panel.spacing = unit(1, "lines")) 
+
+p + scale_fill_discrete(name = "Taxonomic group")
+
+plot(p)
+
+
+
+```
+
+
