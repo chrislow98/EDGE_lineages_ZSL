@@ -50,7 +50,7 @@ RLI_EDGE_names_2008 <- read.csv("C:/Users/Student/Zoological Society of London/E
 # load in Pacifici et al. (2013) generation length dataset
 Generation_length <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/Genlength_mammals.csv")
 
-# load this data (raw): redlist_status, redlist_threats, Generation_length, Pantheria, mammals_pd_merged, IUCN_RL_status_combined, conservation_actions
+# load this data (raw): redlist_status, redlist_threats, Generation_length, elton_mammals, mammals_pd_merged, IUCN_RL_status_combined, conservation_actions
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/phase_two_datasets.RData")
 
 # load this data (summary): EDGE_mammal_summary, EDGE_mammals, IUCN_RL_status_change, mammals_iucn_full, redlist status, redlist_status_summary, redlist_threats, redlist_threats_summary, RL_change_df
@@ -64,51 +64,6 @@ load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low 
 
 # Just save priority EDGE lineage list and PD_mammal_merged list as essential for analysis: mammals_pd_merged, EDGE_priority_lineages (final dataset so far!!!)
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
-
-```
-
-# Function to calculate the Red List Index (RLI)
-
-```{r Red List function, echo=FALSE}
-
-## RLI script
-
-# Label Red List categories
-wtEX<-5
-wtPE<-5
-wtEW<-5
-wtPEW<-5
-wtCR<-4
-wtEN<-3
-wtVU<-2
-wtNT<-1
-wtLC<-0
-
-# Function to calculate the RLI from a set of species categories
-
-get_rli <- function(species_categories) {
-  # Get the number of species in each category, including the old categories
-  nEX<-sum(species_categories=="EX" | species_categories=="E", na.rm = T)
-  nPE<-sum(species_categories=="PE", na.rm = T)
-  nEW<-sum(species_categories=="EW", na.rm = T)
-  nPEW<-sum(species_categories=="PEW", na.rm = T)
-  nCR<-sum(species_categories=="CR", na.rm = T)
-  nEN<-sum(species_categories=="EN", na.rm = T)
-  nVU<-sum(species_categories=="VU" | species_categories=="T", na.rm = T)
-  nNT<-sum(species_categories=="NT"  | species_categories=="LR/nt", na.rm = T)
-  nLC<-sum(species_categories=="LC" | species_categories=="LR/lc" | species_categories=="LR/cd", na.rm = T)
-  
-  # Multiply these by the respective weights and sum
-  Total<-(wtEX*nEX)+(wtPE*nPE)+(wtEW*nEW)+(wtPEW*nPEW)+(wtCR*nCR)+(wtEN*nEN)+(wtVU*nVU)+(wtNT*nNT)+(wtLC*nLC)
-  
-  # Work out the âworse case scenarioâ
-  M<-((nEX+nPE+nEW+nPEW+nCR+nEN+nVU+nNT+nLC)*wtEX)
-  
-  # Calculate RLI 
-  (RLI<-((M-Total)/M))
-  
-  return(RLI)
-}
 
 ```
 
@@ -144,14 +99,13 @@ redlist_status$family <- str_to_title(redlist_status$family)
 # look at data structure
 str(redlist_status)
 
-# Remove DD species from RL analysis- 5109 species
-redlist_status <- subset(redlist_status, category!="DD")
+# Remove Species with unknown population status- 3294- ONLY USING SPECIES WITH KNOWN POPULAITON TRENDS
+redlist_status <- subset(redlist_status, population_trend!="Unknown")
 
 # Assign NA values to unknown RL populations
 redlist_status$population_trend[redlist_status$population_trend == "Increasing"] <- 2
 redlist_status$population_trend[redlist_status$population_trend == "Stable"] <- 1
 redlist_status$population_trend[redlist_status$population_trend == "Decreasing"] <- 0
-redlist_status$population_trend[redlist_status$population_trend == "Unknown"] <- "NA"
 
 # get sums and proportions of threatened species
 redlist_status_summary <- redlist_status %>% 
@@ -163,32 +117,7 @@ redlist_status_summary <- redlist_status %>%
                    Trend_inc = sum(population_trend == 2, na.rm = TRUE),
                    Prop_inc = Trend_inc/length(population_trend[!is.na(population_trend)]),
                    Trend_stab = sum(population_trend == 1, na.rm = TRUE),
-                   Prop_stab = Trend_stab/length(population_trend[!is.na(population_trend)]),
-                   Unknown = sum(is.na(population_trend)),
-                   Prop_unknown = Unknown/length(is.na(population_trend)))
-
-######################################### SCRAP CODE- remove after if not using
-# subset removing NA's
-IUCN_pop_data <- IUCN_pop_data[complete.cases(IUCN_pop_data$RL.ID),]
-
-
-# subset all the rows which do contain NA's
-IUCN_NAs <- EDGE_mammals[is.na(EDGE_mammals$RL.ID),]
-
-# remove NA values
-missing_names <- missing_names[!complete.cases(missing_names$Status),]
-
-
-
-test$RL.ID[is.na(test$RL.ID)] <- 0
-
-EDGE_mammals$Species <- gsub('_', ' ', EDGE_mammals$Species)
-
-test1 <- retrieve_IUCN_data(test$RL.ID)
-
-same_sp <- as.data.frame(intersect(EDGE_mammals$Species, API_list$RLI_sp))
-
-diff_sp <- as.data.frame(setdiff(EDGE_mammals$Species, API_list$RLI_sp))
+                   Prop_stab = Trend_stab/length(population_trend[!is.na(population_trend)]))
 
 
 ######################## change in IUCN RL status since 2008 - DOWNLOADED DATA
@@ -323,7 +252,7 @@ redlist_threat_summary <- redlist_threats %>%
   dplyr::summarise(richness = length(unique(scientific_name.x)),
                    no_1_1 = sum(code == 1.1),
                    prop_1_1 = no_1_1/richness,
-                   no_2_2 = sum(code == 2.1),
+                   no_2_1 = sum(code == 2.1),
                    prop_2_2 = no_2_2/richness,
                    no_2_3 = sum(code == 2.3),
                    prop_2_3 = no_2_3/richness,
@@ -342,15 +271,6 @@ redlist_threat_summary <- redlist_threats %>%
 
 # load in conservation action data (text)
 conservation_actions <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Conservation_action/conservation_actions.csv")
-
-
-
-# trying to highlight key words from conservation action
-x <- conservation_actions[grepl("protected areas", conservation_actions[["conservationActions"]]) | grepl("nature reserves", conservation_actions[["conservationActions"]]) | grepl("forest reserve", conservation_actions[["conservationActions"]]) | grepl("national parks", conservation_actions[["conservationActions"]]) | grepl("species occurs", conservation_actions[["conservationActions"]]), ] 
-
-x <- conservation_actions[grepl("occurs in protected area", conservation_actions[["conservationActions"]]) | grepl("found in protected area", conservation_actions[["conservationActions"]]) | grepl("occurs in several protected areas", conservation_actions[["conservationActions"]]) | grepl("occurs in at least one protected area", conservation_actions[["conservationActions"]]),]
-
-# select important columns
 
 # convert conservation actions into binary
 conservation_actions$con_action_binary[conservation_actions$conservationActions == "protected areas"] <- 1
@@ -469,19 +389,19 @@ sum(LPI_coverage$lpi_richness > 33, na.rm = TRUE)
 
 # Load in mammal trait data 
 
-```{r load PanTHERIA dataset, echo=TRUE}
+```{r load Elton traits dataset, echo=TRUE}
 
-#load in dataset - 3802 species
-Pantheria <- pantheria
+#load in dataset - 5782 species
+data("elton_mammals")
 
-# Get mean body size for each family - using Pacifici et al. (2013) dataset
+# Get mean body size for each family 
 
-mammal_bodysize_full <- Pantheria %>% 
-  select(Family, Genus, Species, AdultBodyMass_g) %>% 
+elton_bodysize_full <- elton_mammals %>% 
+  dplyr::select(Family, Genus, Species, BodyMass.Value) %>% 
   group_by(Family) %>% 
-  dplyr::summarise(bodysize_mean = mean(AdultBodyMass_g, na.rm = TRUE))
+  dplyr::summarise(bodysize_mean = mean(BodyMass.Value, na.rm = TRUE))
 
-# Get mean genreation length (days) for each family
+# Get mean genreation length (days) for each family - using Pacifici et al. (2013) dataset
 mammal_genlength <- Generation_length %>% 
   dplyr::select(TaxID, Family, Scientific_name, GenerationLength_d) %>% 
   group_by(Family) %>% 
@@ -493,9 +413,6 @@ mammal_genlength <- Generation_length %>%
 
 # Aggregating all data sources together
 ```{r combine data sources, echo=TRUE}
-
-# Make sure you use the pd_mammals_merged dataset
-save(mammals_pd_merged, EDGE_priority_lineages, EDGE_amphibian_summary, EDGE_bird_summary, EDGE_reptile_summary, file =  "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores.EDGE_summary_dataframes_phase_TWO_.RData")
 
 # rename Family column and remove richness scores (only need to worry about overall richness score)
 
@@ -544,11 +461,33 @@ mammals_pd_merged <- merge(mammals_pd_merged, EDGE_class, by = "Family", all = T
 mammals_pd_merged$EDGE_priority[is.na(mammals_pd_merged$EDGE_priority)] <- "No"
 mammals_pd_merged$priority_type[is.na(mammals_pd_merged$priority_type)] <- "Non-Priority"
 
-# Scrap code? SAVE NEW PRIORITY DATAFRAME AND MAMMALS_PD_MERGED
-mammals_pd_merged <- merge(mammals_pd_merged, t, by = "Family", all = TRUE)
-
 # write csv for merged mammal PD
 write.csv(mammals_pd_merged, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_mammal_lineages.csv")
 
+
+```
+
+```{r matching order to family, echo=TRUE}
+
+# match up Order with family##############
+Order <- read.csv(file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/Mammal_orders.csv")
+
+Order$Order <- str_to_title(Order$Order)
+Order$Family <- str_to_title(Order$Family)
+
+Order <- Order %>% 
+  dplyr::select(Family, Order, species) %>% 
+  group_by(Order, Family) %>% 
+  summarise(richness = sum(length(Order)))
+
+mammals_pd_merged <- merge(mammals_pd_merged, Order,  by = "Family", all.x = TRUE)
+
+mammals_pd_merged <- mammals_pd_merged[,c(1,3:50)]
+
+mammals_pd_merged <- mammals_pd_merged %>%
+  dplyr::select(Order, everything())
+
+# Make sure you use the pd_mammals_merged dataset
+save(mammals_pd_merged, EDGE_priority_lineages, EDGE_amphibian_summary, EDGE_bird_summary, EDGE_reptile_summary, file =  "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores.EDGE_summary_dataframes_phase_TWO_.RData")
 
 ```
