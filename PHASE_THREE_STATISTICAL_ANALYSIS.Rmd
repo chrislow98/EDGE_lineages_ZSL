@@ -1,5 +1,5 @@
 ---
-title: "PHASE_THREE_STATISTICAL_ANALYSIS"
+title: "PHASE_THREE_STATISTICAL_ANALYSIS_AND_GRAPHS"
 author: "Chris Low"
 date: "01/09/2021"
 output: html_document
@@ -25,6 +25,7 @@ library(DHARMa) # model critism plots
 library(effects) # extracting model outputs
 library(jtools) # 
 library(webshot) # extract SJplots - for tables
+library(StatisticalModels) # package by Tim Newbold fro assessing statistical 
 
 ```
 
@@ -38,27 +39,6 @@ load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low 
 # load dataout datasets with both Upham and Gumbs datasets
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/ePD_scores_ALL.RData")
 
-# match up Order with family##############
-Order <- read.csv(file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/Mammal_orders.csv")
-
-Order$Order <- str_to_title(Order$Order)
-Order$Family <- str_to_title(Order$Family)
-
-Order <- Order %>% 
-  dplyr::select(Family, Order, species) %>% 
-  group_by(Order, Family) %>% 
-  summarise(richness = sum(length(Order)))
-
-t <- merge(mammals_pd_merged, Order,  by = "Family", all.x = TRUE)
-
-t <- t[,c(1,3:50)]
-
-t <- t %>%
-  dplyr::select(Order, everything())
-
-# insert family into NA's
-mammals_pd_merged <- t
-########################################
 ```
 
 # Summary statistics of entirly threatened lineages
@@ -152,15 +132,8 @@ dev.off()
 
 ```{r intrinsic and extrinsic threats, echo=TRUE}
 
-# 
-ePD_response_df <- mammals_pd_merged[,c(1,2,3:4,9,14,26:39,48:49)]
-
-# visulising distributions of data
-# distribution of response variable is poission
-par(mfrow=c(3:4))
-for(i in 2:23) {
-    hist(ePD_response_df[,i], main=names(ePD_response_df)[i])
-}
+# subset explanatory variables needed for this question
+ePD_response_df <- mammals_pd_merged[,c(1,2,27,29,31,33,35,37:39,48:49)]
 
 # Calculate number of occurences which are greater than 0 to sum threat data
 ePD_response_df$threat_sum <- apply(ePD_response_df[,c("prop_1_1","prop_2_1","prop_2_3","prop_5_1","prop_5_3","prop_8_1")], 1, function(x) length(which(x > 0)))
@@ -170,54 +143,60 @@ ePD_response_df <- ePD_response_df %>%
   group_by(Family) %>% 
   mutate(threat_sum_prop = threat_sum/6)
 
+ePD_response_df$threat_sum <- as.numeric(ePD_response_df$threat_sum)
+
+# visulising distributions of data
+# distribution of response variable is poission
+par(mfrow=c(3:4))
+for(i in 3:14) {
+    hist(ePD_response_df[,i], main=names(ePD_response_df)[i])
+}
+
 # check colinearity of data
 # creating a correlation matrix
-correlations <- cor(ePD_response_df[,3:24])
+correlations <- cor(ePD_response_df[,3:14])
 corrplot(correlations, method="circle")
 
+# Remove NA's
 ePD_response_df <- ePD_response_df[complete.cases(ePD_response_df),]
 
 # run a glm- MAXIMAL MODEL
-ED_glm_full <- glm(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_1 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum_prop, 
-              family = gaussian,
+ED_glmm_full <- lmer(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_1 + prop_2_3 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum_prop + (1| Order),
               na.action = "na.fail",
               data = ePD_response_df) 
 
-summary(ED_glm_full)
+summary(ED_glmm_full)
 
-tab_model(ED_glm_full)
+tab_model(ED_glmm_full)
 
 # find out explanatory power
-with(summary(ED_glm_full), 1 - deviance/null.deviance)
+StatisticalModels::R2GLMER(ED_glmm_full)
 
 # check model performance - assumptions not violated - no they are not xx
-check_model(ED_glm_full)
-
-model_selction <- step(ED_glm_full, direction = "backward")
+performance::check_model(ED_glmm_full)
 
 # update the new model
-ED_glm_new <- glm(formula = log(median_ED + 1) ~ prop_2_3 + prop_5_3 + prop_8_1 + 
-    threat_sum_prop, family = gaussian, data = ePD_response_df, na.action = "na.fail")
+ED_glmm_new <- lmer(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_1 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum_prop + (1| Order),
+              na.action = "na.fail",
+              data = ePD_response_df) 
 
-tab_model(ED_glm_new)
+tab_model(ED_glmm_full)
 
 # find out explanatory power
-with(summary(ED_glm_new), 1 - deviance/null.deviance)
+StatisticalModels::R2GLMER(ED_glmm_full)
 
-# Using anova to compare model fits - keep full model as it has the highest explanatory power
-anova(ED_glm_new, ED_glm_full, test = "F")
+# Using anova to compare model fits (chi sqr test) - keep full model as it has the highest explanatory power - keep ful model
+anova(ED_glmm_new, ED_glmm_full, test = "chi")
 
 # create null model
-ED_null <- glm(log(median_ED + 1) ~ 1, data = ePD_response_df)
+ED_null <- lmer(log(median_ED +1) ~ 1 + (1 | Order), REML = FALSE, data = ePD_response_df)
 
-anova(ED_glm_full, ED_null, test = "F")
-
-# Lastly- check model assumptions 
-check_model(ED_glm_full)
+# compare full and null model
+anova(ED_glmm_full, ED_null, test = "chi")
 
 ### create tabular format or results
-tab_model(file = "ED_glm_table.html",
-  ED_glm_full,
+tab_model(file = "ED_glmm_table.html",
+  ED_glmm_full,
   CSS = list(
     css.depvarhead = 'color: black;',
     css.centeralign = 'text-align: left;', 
@@ -226,18 +205,62 @@ tab_model(file = "ED_glm_table.html",
   )
 )
 
-webshot("ED_glm_table.html", "ED_glm_table.png")
+webshot("ED_glmm_table.html", "ED_glmm_table.png")
 
-# Plotting the response of ED
+## extract effects of significant effects in the model and predcit them
+# Plotting the response of ED 
 # pull out the significant effects of the model
+ED_effects_2_1 <- effects::effect(term = c("prop_2_3"), mod = ED_glmm_full) %>%
+  # turn it into a dataframe
+  as.data.frame()
+
+ED_effects_2_1$group <- "Threat 2.3"
+names(ED_effects_2_1)[1] <- "proportion"
+
+ED_effects_5_3 <- effects::effect(term = c("prop_5_3"), mod = ED_glmm_full) %>%
+  # turn it into a dataframe
+  as.data.frame()
+
+ED_effects_5_3$group <- "Threat 5.3"
+names(ED_effects_5_3)[1] <- "proportion"
 
 
+ED_effects_8_1 <- effects::effect(term = c("prop_8_1"), mod = ED_glmm_full) %>%
+  # turn it into a dataframe
+  as.data.frame()
 
-plot_model(ED_glm_full, type = "pred", terms = c("prop_2_3", "prop_5_3", "prop_8_1"))
+ED_effects_8_1$group <- "Threat 8.1"
+names(ED_effects_8_1)[1] <- "proportion"
 
-plot_grid(p)
 
-```
+ED_effects_threat_sum <- effects::effect(term = c("threat_sum_prop"), mod = ED_glmm_full) %>%
+  # turn it into a dataframe
+  as.data.frame()
+
+ED_effects_threat_sum$group <- "Threat sum"
+names(ED_effects_threat_sum)[1] <- "proportion"
+
+# merge dataframes in long format
+ED_glmmm_df <- rbind(ED_effects_2_1, ED_effects_5_3, ED_effects_8_1, ED_effects_threat_sum)
+
+# remember to back-transform variables!!
+ED_glmmm_df$fit_log <- exp(ED_glmmm_df$fit)
+ED_glmmm_df$upper_log <- exp(ED_glmmm_df$upper)
+ED_glmmm_df$lower_log <- exp(ED_glmmm_df$lower)
+
+
+# set up a ggplot
+ggplot(ED_glmmm_df) + 
+  # plot the average slope (fit) for each significant effect
+  # I've used automatic colouring for each effect
+  geom_line(aes(x = proportion, y = fit_log, group = group, color = group), show.legend = FALSE) +
+  # add shading for the confidence intervals for each slope
+  geom_ribbon(aes(x = proportion, ymin = lower_log, ymax = upper_log, group = group, fill = group), alpha = 0.2) +
+  # add the x and y label
+  labs(x = "Proportion of species in family" ,y = "log(Median ED)") +
+    theme_bw(base_size = 16) +
+    scale_fill_discrete(name = "Significant effects")
+
 
 
 # Check if intrinsic and extrintic threats respond to EDGE score
@@ -352,9 +375,9 @@ ED_effects_threats <- effects::effect(term = c("threat_sum"), mod = EDGE_glm_ful
 
 # set up a ggplot
 ggplot(ED_effects_5_3) + 
-  # plot the average slope (fit) for each land use
+  # plot the average slope (fit) for each significant effect
   # I've used automatic colouring by land use but you can also specify what colours you want for each land use
-  geom_line(aes(x = prop_5_3, y = fit)) +
+  geom_line(aes(x = proportion, y = fit)) +
   # add shading for the confidence intervals for each slope
   geom_ribbon(aes(x = prop_5_3, ymin = lower, ymax = upper), alpha = 0.2) +
   # add the x and y label
@@ -382,6 +405,22 @@ webshot("plot.html", "plot.png")
 
 effect_plot(ED_glm_full, pred = threat_sum, interval = TRUE)
 
+effects_lu_hpd <- effects::effect(term = c("prop_8_1"), mod = ED_glm_full) %>%
+as.data.frame()
+
+effects_lu_hpd$back_log <- exp(effects_lu_hpd$fit)
+effects_lu_hpd$upper_log <- exp(effects_lu_hpd$upper)
+effects_lu_hpd$lower_log <- exp(effects_lu_hpd$lower)
+
+# set up a ggplot
+ggplot(effects_lu_hpd) + 
+  # plot the average slope (fit) for each land use
+  # I've used automatic colouring by land use but you can also specify what colours you want for each land use
+  geom_line(aes(x = prop_8_1, y = back_log,
+                colour = prop_8_1)) +
+  # add shading for the confidence intervals for each slope
+  geom_ribbon(aes(x = prop_8_1, ymin = lower_log, ymax = upper_log), alpha = 0.2)
+
 ```
 
 ## Question (ii) How does the inteaction between EDGE/ED score with proportion of threatened species predict conservation status?
@@ -403,7 +442,7 @@ con_status_interacts_df <- con_status_interacts_df[complete.cases(con_status_int
 
 # visulising distibutions of data
 par(mfrow=c(4,2))
-for(i in 2:8) {
+for(i in 3:12) {
     hist(con_status_interacts_df[,i], main=names(con_status_interacts_df)[i])
 }
 
@@ -416,10 +455,31 @@ str(con_status_interacts_df)
 
 # glm in which EDGE or ED scores is a responds to proportion of threatened species interacts with threats
 # perform a glm fit
-con_status_uplisted_glm <- glm(prop_uplisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
+con_status_interacts_df$assessed_threat_prop <- to_value(con_status_interacts_df$assessed_threat_prop)
 
-summary(con_status_uplisted_glm)
+con_status_interacts_df$median_ED <- to_numeric(con_status_interacts_df$median_ED)
 
+con_status_uplisted_glm_ED <- glm(prop_uplisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
+
+summary(con_status_uplisted_glm_ED)
+
+### plotting outputs for conservation status: ED scores and threatened species
+### create tabular format or results
+tab_model(file = "con_status_uplisted_glm_ED.html",
+  con_status_uplisted_glm,
+  CSS = list(
+    css.depvarhead = 'color: black;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: black;'
+  )
+)
+
+webshot("con_status_uplisted_glm_ED.html", "con_status_uplisted_glm_ED.png")
+
+# Predict conservation up-listings for ED:threatened species interaction
+
+plot_model(con_status_uplisted_glm_ED, type = "pred", terms = c("assessed_threat_prop", "median_ED"))
 
 ####################################### GLMM scrap code
 con_status_interacts_df$Order <- factor(con_status_interacts_df$Order)
@@ -448,14 +508,11 @@ con_status_uplisted_glm_EDGE <- glm(prop_uplisted ~ median_EDGE, family = quasib
 
 summary(con_status_uplisted_glm_EDGE)
 
-# get summary of model output
-summary(con_status_uplisted_glm)
-
 # get explanatory power of model 
 with(summary(con_status_uplisted_glm), 1 - deviance/null.deviance)
 
 # check for model performance
-performance::check_model(con_status_uplisted_glm)
+performance::check_model(con_status_uplisted_glm_EDGE)
 
 # test for overdispersion
 overdisp_fun <- function(model) {
@@ -474,76 +531,86 @@ overdisp_fun(con_status_uplisted_glm)
 con_status_uplisted_glm_null <- glm(prop_uplisted ~ 1, family = quasibinomial("logit"), data = con_status_interacts_df)
 
 # use anova to compare
-anova(con_status_uplisted_glm_null, con_status_uplisted_glm, test = "F")
+anova(con_status_uplisted_glm_null, con_status_uplisted_glm_EDGE, test = "F")
 
 ### create tabular format or results
-tab_model(file = "con_status_uplisted_glm.html",
-  con_status_uplisted_glm,
+tab_model(file = "con_status_uplisted_glm_ALL.html",
+  con_status_uplisted_glm_ED, con_status_uplisted_glm_EDGE,
   CSS = list(
-    css.depvarhead = 'color: red;',
+    css.depvarhead = 'color: black;',
     css.centeralign = 'text-align: left;', 
     css.firsttablecol = 'font-weight: bold;', 
-    css.summary = 'color: blue;'
+    css.summary = 'color: black;'
   )
 )
 
-webshot("con_status_uplisted_glm.html", "con_status_uplisted_glm.png")
+webshot("con_status_uplisted_glm_ALL.html", "con_status_uplisted_glm_ALL.png")
 
-
-############# exploring stable populations
-
-con_status_stable_glm <- glm(Prop_stab ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
-
-summary(con_status_stable_glm)
-
-check_model()
 
 # looking at how the interaction between ED score and proporiton of threatened species predicts conservation status downlistings (improved conservation status)
-con_status_downlisted_glm <- glm(prop_downlisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
 
-con_status_downlisted_glm_EDGE <- glm(prop_downlisted ~ median_EDGE, family = quasibinomial("logit"), data = con_status_interacts_df)
+# make threatened species categorical
+con_status_interacts_df$assessed_threat_prop <- to_factor(con_status_interacts_df$assessed_threat_prop)
 
-summary(con_status_downlisted_glm_EDGE)
+con_status_downlisted_glm_ED <- glm(prop_downlisted ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
 
-# get model summary
-summary(con_status_downlisted_glm)
+# get summary of results
+summary(con_status_downlisted_glm_ED)
 
 # get explanatory power
-with(summary(con_status_downlisted_glm), 1 - deviance/null.deviance)
-
-# test for overdispersion
-overdisp_fun(con_status_downlisted_glm)
+with(summary(con_status_downlisted_glm_ED), 1 - deviance/null.deviance)
 
 # compare to null model
-con_status_downlisted_glm_null <- glm(prop_downlisted ~ 1, family = quasibinomial("logit"), data = con_status_interacts_df)
+con_status_downlisted_glm_ED_null <- glm(prop_downlisted ~ 1, family = quasibinomial("logit"), data = con_status_interacts_df)
 
 # compare between null and full model
-anova(con_status_downlisted_glm, con_status_downlisted_glm_null, test = "F")
+anova(con_status_downlisted_glm_ED, con_status_downlisted_glm_ED_null, test = "F")
 
 ### create tabular format or results
-tab_model(file = "con_status_downlisted_glm.html",
-  con_status_downlisted_glm,
+tab_model(file = "con_status_downlisted_glm_ALL.html",
+  con_status_downlisted_glm_ED, con_status_downlisted_glm_EDGE,
   CSS = list(
-    css.depvarhead = 'color: red;',
+    css.depvarhead = 'color: black;',
     css.centeralign = 'text-align: left;', 
     css.firsttablecol = 'font-weight: bold;', 
-    css.summary = 'color: blue;'
+    css.summary = 'color: black;'
   )
 )
 
-webshot("con_status_downlisted_glm.html", "con_status_downlisted_glm.png")
+webshot("con_status_downlisted_glm_ALL.html", "con_status_downlisted_glm_ALL.png")
 
-# LOOKING AT CONSERVATION STATUS THAT HAVE BEEN STABLE
-con_status_stable_glm <- glm(prop_stable ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = con_status_interacts_df)
+# looking at how EDGE score predicts conservation downlistings (improved conservation status)
+con_status_downlisted_glm_EDGE <- glm(prop_downlisted ~ median_EDGE, family = quasibinomial("logit"), data = con_status_interacts_df)
 
-summary(con_status_stable_glm)
+# get summary of results
+summary(con_status_downlisted_glm_EDGE)
 
-check_model(con_status_stable_glm)
+# check model
+check_model(con_status_downlisted_glm_EDGE)
 
-with(summary(con_status_stable_glm), 1 - deviance/null.deviance)
+# check explanatory power
+with(summary(con_status_downlisted_glm_EDGE), 1 - deviance/null.deviance)
 
-# present models in nice format- for tomorrow
-tab_model(m_ri, show.aic = T)
+# compare to null model
+con_status_downlisted_glm_EDGE_null <- glm(prop_downlisted ~ median_EDGE, family = quasibinomial("logit"), data = con_status_interacts_df)
+
+# compare full and null model - both downlisting models are insignificant
+anova(con_status_downlisted_glm_EDGE, con_status_downlisted_glm_EDGE_null, test = "F")
+
+
+### create tabular format or results
+tab_model(file = "con_status_downlisted_glm_ALL.html",
+  con_status_downlisted_glm_ED, con_status_downlisted_glm_EDGE,
+  auto.label = FALSE,
+  CSS = list(
+    css.depvarhead = 'color: black;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: black;'
+  )
+)
+
+webshot("con_status_downlisted_glm_ALL.html", "con_status_downlisted_glm_ALL.png")
 
 ```
 
@@ -559,49 +626,35 @@ pop_status_df <- pop_status_df[complete.cases(pop_status_df),]
 
 # visulising distibutions of data
 par(mfrow=c(4,2))
-for(i in 2:13) {
+for(i in 3:14) {
     hist(pop_status_df[,i], main=names(pop_status_df)[i])
 }
 
 # creating a correlation matrix - no correlations between variables. Can therefore dismiss the assumption of non-independence
-correlations <- cor(pop_status_df[,2:13])
+correlations <- cor(pop_status_df[,3:14])
 corrplot(correlations, method="circle")
 
 # glm in which EDGE or ED scores is a responds to proportion of threatened species interacts with threats predict popualtion decline
 # perform a glm fit
-pop_status_dec_glm <- glm(Prop_dec ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
-
+pop_status_dec_glm_ED <- glm(Prop_dec ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
 
 # get model summary
-summary(pop_status_dec_glm)
+summary(pop_status_dec_glm_ED)
 
 # get explanatory power
-with(summary(pop_status_dec_glm), 1 - deviance/null.deviance)
+with(summary(pop_status_dec_glm_ED), 1 - deviance/null.deviance)
 
 # test for overdispersion
-overdisp_fun(pop_status_dec_glm)
+overdisp_fun(pop_status_dec_glm_ED)
 
 # check model performance
-check_model(pop_status_dec_glm)
+check_model(pop_status_dec_glm_ED)
 
 # create null model
-pop_status_dec_glm_null <- glm(Prop_dec ~ 1, family = quasibinomial("logit"), data = pop_status_df)
+pop_status_dec_glm_ED_null <- glm(Prop_dec ~ 1, family = quasibinomial("logit"), data = pop_status_df)
 
 # compare full and reduced model
-anova(pop_status_dec_glm, pop_status_dec_glm_null, test = "F")
-
-### create tabular format or results
-tab_model(file = "pop_status_dec_glm.html",
-  pop_status_dec_glm,
-  CSS = list(
-    css.depvarhead = 'color: red;',
-    css.centeralign = 'text-align: left;', 
-    css.firsttablecol = 'font-weight: bold;', 
-    css.summary = 'color: blue;'
-  )
-)
-
-webshot("pop_status_dec_glm.html", "pop_status_dec_glm.png")
+anova(pop_status_dec_glm_ED, pop_status_dec_glm_ED_null, test = "F")
 
 #################################################
 ### Look at EDGE score as the response, but remove threatened species 
@@ -620,59 +673,72 @@ overdisp_fun(pop_status_dec_glm)
 check_model(pop_status_dec_glm_EDGE)
 
 # create null model
-pop_status_dec_glm_null <- glm(Prop_dec ~ 1, family = quasibinomial("logit"), data = pop_status_df)
+pop_status_dec_glm_EDGE_null <- glm(Prop_dec ~ 1, family = quasibinomial("logit"), data = pop_status_df)
 
 # compare full and reduced model
-anova(pop_status_dec_glm_EDGE, pop_status_dec_glm_null, test = "F")
-
-```
-
-```{r pop inc, echo=TRUE}
-# now look at glm for population increases
-pop_status_inc_glm <- glm(Prop_inc ~ assessed_threat_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
-
-# get model summary
-summary(pop_status_inc_glm)
-
-# get explanatory power
-with(summary(pop_status_inc_glm), 1 - deviance/null.deviance)
-
-# test for overdispersion
-overdisp_fun(pop_status_dec_glm)
-
-# check model performance
-check_model(pop_status_inc_glm)
-
-# create null model
-pop_status_inc_glm_null <- glm(Prop_inc ~ 1, family = quasibinomial("logit"), data = pop_status_df)
-
-# compare full and null model
-anova(pop_status_inc_glm, pop_status_inc_glm_null, test = "F")
-
-# compare full and reduced model
-anova(pop_status_dec_glm, pop_status_dec_glm_null, test = "F")
-
-### Populations stable 
-pop_status_stab_glm <- glm(Prop_stab ~ LC_NT_prop*median_ED, family = quasibinomial("logit"), data = pop_status_df)
-
-summary(pop_status_stab_glm)
+anova(pop_status_dec_glm_EDGE, pop_status_dec_glm_EDGE_null, test = "F")
 
 ### create tabular format or results
-tab_model(file = "pop_status_inc_glm.html",
-  pop_status_inc_glm,
+tab_model(file = "pop_status_dec_glm_ALL.html",
+  pop_status_dec_glm_ED, pop_status_dec_glm_EDGE,
   CSS = list(
-    css.depvarhead = 'color: red;',
+    css.depvarhead = 'color: black;',
     css.centeralign = 'text-align: left;', 
     css.firsttablecol = 'font-weight: bold;', 
-    css.summary = 'color: blue;'
+    css.summary = 'color: black;'
   )
 )
 
-webshot("pop_status_inc_glm.html", "pop_status_inc_glm.png")
+webshot("pop_status_dec_glm_ALL.html", "pop_status_dec_glm_ALL.png")
 
 ```
 
-# Summary data for EDGE lineages
+## Looking at popualtion decreases
+
+```{r pop inc, echo=TRUE}
+# now look at glm for population increases
+pop_status_inc_glm_ED <- glm(Prop_inc ~ assessed_threat_prop*median_ED, family = binomial("logit"), data = pop_status_df)
+
+# get model summary
+summary(pop_status_inc_glm_ED)
+
+# get explanatory power
+with(summary(pop_status_inc_glm_ED), 1 - deviance/null.deviance)
+
+# test for overdispersion
+overdisp_fun(pop_status_inc_glm_ED)
+
+# check model performance
+check_model(pop_status_inc_glm_ED)
+
+# create null model
+pop_status_inc_glm_ED_null <- glm(Prop_inc ~ 1, family = quasibinomial("logit"), data = pop_status_df)
+
+# compare full and null model
+anova(pop_status_inc_glm_ED, pop_status_inc_glm_ED_null, test = "F")
+
+# now look at EDGE scores for population increases
+pop_status_inc_glm_EDGE <- glm(Prop_inc ~ median_EDGE, family = binomial("logit"), data = pop_status_df)
+
+# get summary of results
+summary(pop_status_inc_glm_EDGE)
+
+### create tabular format or results
+tab_model(file = "pop_status_inc_glm_ALL.html",
+  pop_status_inc_glm_ED, pop_status_inc_glm_EDGE,
+  CSS = list(
+    css.depvarhead = 'color: black;',
+    css.centeralign = 'text-align: left;', 
+    css.firsttablecol = 'font-weight: bold;', 
+    css.summary = 'color: black;'
+  )
+)
+
+webshot("pop_status_inc_glm_ALL.html", "pop_status_inc_glm_ALL.png")
+
+```
+
+# Identifying EDGE summary statistics and graphs
 ```{r priority lineages, echo=TRUE}
 
 # number of EDGE lineages - 5
