@@ -11,9 +11,16 @@ library(ggplot2) # graphical visualization
 library(dplyr) # data manipulations
 library(viridis) # 
 library(hrbrthemes) # colour themes
+library(sjPlot) # creating tables
 
 ```
+# Load dataset
+```{r load data, echo=TRUE}
 
+# Just save priority EDGE lineage list and PD_mammal_merged list as essential for analysis: mammals_pd_merged, EDGE_priority_lineages, ePD_priority_lineages (final datasets so far!!)
+load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
+
+```
 
 ## Creating a density plot to explore DD of species across taxonomic groups
 ```{r DD/NE, include=FALSE}
@@ -21,26 +28,74 @@ library(hrbrthemes) # colour themes
 # load in packages
 DD_NE_density <- read.csv(file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/taxonomic_summary.csv")
 
-theme_set(theme_bw())
+# plot histogram of DD/ NE distribution for all my taxonomic groups- data must be long format
+
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Conservation status/DD_ALL_taxonomic_groups.tiff", units = "in", width = 7, height = 5, res = 300)
 
 p <- DD_NE_density %>%
-  ggplot( aes(x=no_DD_NE_prop, fill = Taxonomic_group)) +
+  ggplot(aes(x=no_DD_NE_prop, fill = Taxonomic_group)) +
   geom_histogram(color = "black", alpha=0.7, binwidth = 0.1) + 
-  facet_wrap(~Taxonomic_group) +
+  facet_wrap(~Taxonomic_group) + # inlcude each taxonomic group
   theme_ipsum() +
   labs(x = "Proportion of DD and NE mammalian families", y = "Number of mammalian families") +
     theme(axis.text = element_text(face = "bold"),
       axis.title.y = element_text(size = 12, hjust = 0.5, face = "bold"),
       axis.title.x = element_text(size = 12, hjust = 0.5, face = "bold"),
-      strip.text.x = element_blank(),
-      panel.spacing = unit(1, "lines")) 
+      strip.text.x = element_blank(), # remove taxonomic group listings- use images instead
+      panel.spacing = unit(1, "lines")) + # space between each plot
+      scale_fill_discrete(name = "Taxonomic group")
 
-p + scale_fill_discrete(name = "Taxonomic group")
-
-plot(p)
-
+dev.off()
 
 
 ```
 
+# Create table of EDGE prioirty lineages
+
+```{r EDGE lineage table, echo=TRUE}
+
+# Get subset of EDGE prioirty lineages
+EDGE_prioirty <- subset(mammals_pd_merged, priority_type == "Priority lineage")
+
+# subset column needed for table
+EDGE_prioirty_table <- EDGE_prioirty[,c(1:3,39,49,14)]
+
+# rename columns
+names(EDGE_prioirty_table)[3] <- "No. of species in family"
+names(EDGE_prioirty_table)[4] <- "Median EDGE score"
+names(EDGE_prioirty_table)[5] <- "Median ED (MY)"
+names(EDGE_prioirty_table)[6] <- "Median ePD loss (MY)"
+
+# Order EDGE score
+EDGE_prioirty_table <- EDGE_prioirty_table[order(EDGE_prioirty_table$`Median EDGE score`, decreasing = TRUE),]
+
+# Create table into word doc 
+tab_df(EDGE_prioirty_table,
+       alternate.rows = TRUE,
+       digits = 2,
+       col.header = NULL,
+       file = "EDGE_priority_lineages.doc")
+
+# EDGE prioirty list full
+EDGE_prioirty_table_full <- EDGE_priority_lineages[,c(2,3,41,39,49)]
+
+# Order EDGE score
+EDGE_prioirty_table_full <- EDGE_prioirty_table_full[order(EDGE_prioirty_table_full$median_EDGE, decreasing = TRUE),]
+
+# rename columns
+names(EDGE_prioirty_table_full)[2] <- "No. of species in family"
+names(EDGE_prioirty_table_full)[3] <- "Priority type"
+names(EDGE_prioirty_table_full)[4] <- "Median EDGE score"
+names(EDGE_prioirty_table_full)[5] <- "Median ED (MY)"
+
+# Create table into word doc 
+tab_df(EDGE_prioirty_table_full,
+       alternate.rows = TRUE,
+       digits = 2,
+       col.header = NULL,
+       file = "EDGE_priority_lineages_full.doc")
+
+webshot("EDGE_priority_lineages.html", "EDGE_priority_lineages.png")
+
+```
 
