@@ -109,9 +109,48 @@ dev.off()
 
 
 
+```
 
+# Creating a bar chart of the top 10% of ePD loss families
+
+```{r top ePD loss, echo=TRUE}
+
+# subset ePD loss data
+ePD_loss_df <- mammals_pd_merged[,c(2:3, 14:18)]
+
+# order df by ePD loss scores
+ePD_loss_df <- ePD_loss_df[order(ePD_loss_df$Median.exPD, decreasing = TRUE),]
+
+# subset top 10% of ePD loss
+ePD_loss_df <- ePD_loss_df[c(1:10),]
+
+# round up whole numbers
+ePD_loss_df$Median.exPD <- round(ePD_loss_df$Median.exPD, digits = 0)
+ePD_loss_df$Lwr.Quantile <- round(ePD_loss_df$Lwr.Quantile, digits = 0)
+ePD_loss_df$Uppr.Quantile <- round(ePD_loss_df$Uppr.Quantile, digits = 0)
+
+# Reorder df 
+ePD_loss_df <- transform(ePD_loss_df,
+          Family = reorder(Family,order(Median.exPD, decreasing = FALSE))) 
+
+# write out file
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/ePD loss and EDGE lineage framework/top_10_ePD_loss_families.tiff", units = "in", width = 7, height = 5, res = 300)
+
+# Create ggplot
+p <- ggplot(data = ePD_loss_df, aes(x = Family, y = Median.exPD, label = richness))+
+  geom_bar(position = position_dodge(width = 2), width = 0.7, fill = "gray", color = "black", stat = 'identity') +
+  geom_text(aes(label = richness), # add species richness as text
+            vjust = 0.4,
+            hjust = -0.5,
+            size =4) +
+  coord_flip() + # flip axis on it's side
+  labs(x = "Family", y = "Median ePD loss (*species richness)") + # change axis titles
+  theme_Publication()
+
+dev.off()
 
 ```
+
 
 # Create table of EDGE prioirty lineages
 
