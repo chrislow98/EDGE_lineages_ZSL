@@ -12,8 +12,62 @@ library(dplyr) # data manipulations
 library(viridis) # 
 library(hrbrthemes) # colour themes
 library(sjPlot) # creating tables
+library(gridExtra) # sort out gridding for plots
+library(ggthemes) # make nice themed plots
+library(RColorBrewer) # make colour palletes
+library(scales) # changing metric scales
 
 ```
+# Create plotting themes
+```{r plotting theme, echo=TRUE}
+
+theme_Publication <- function(base_size=14, base_family="helvetica") {
+      library(grid)
+      library(ggthemes)
+      (theme_foundation(base_size=base_size, base_family=base_family)
+       + theme(plot.title = element_text(face = "bold",
+                                         size = rel(1.2), hjust = 0.5),
+               text = element_text(),
+               panel.background = element_rect(colour = NA),
+               plot.background = element_rect(colour = NA),
+               panel.border = element_rect(colour = NA),
+               axis.title = element_text(face = "bold",size = rel(1)),
+               axis.title.y = element_text(angle=90,vjust =2),
+               axis.title.x = element_text(vjust = -0.2),
+               axis.text = element_text(), 
+               axis.line = element_line(colour="black"),
+               axis.ticks = element_line(),
+               panel.grid.major = element_line(colour="#f0f0f0"),
+               panel.grid.minor = element_blank(),
+               legend.key = element_rect(colour = NA),
+               legend.position = "bottom",
+               legend.direction = "horizontal",
+               legend.key.size= unit(0.2, "cm"),
+               legend.margin = unit(0, "cm"),
+               legend.title = element_text(face="italic"),
+               plot.margin=unit(c(10,5,5,5),"mm"),
+               strip.background=element_rect(colour="#f0f0f0",fill="#f0f0f0"),
+               strip.text = element_text(face="bold")
+          ))
+      
+}
+
+scale_fill_Publication <- function(...){
+      library(scales)
+      discrete_scale("fill","Publication",manual_pal(values = c("#386cb0","#fdb462","#7fc97f","#ef3b2c","#662506","#a6cee3","#fb9a99","#984ea3","#ffff33")), ...)
+
+}
+
+scale_colour_Publication <- function(...){
+      library(scales)
+      discrete_scale("colour","Publication",manual_pal(values = c("#386cb0","#fdb462","#7fc97f","#ef3b2c","#662506","#a6cee3","#fb9a99","#984ea3","#ffff33")), ...)
+
+}
+
+
+```
+
+
 # Load dataset
 ```{r load data, echo=TRUE}
 
@@ -28,24 +82,33 @@ load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low 
 # load in packages
 DD_NE_density <- read.csv(file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/taxonomic_summary.csv")
 
+DD_NE_density$percent <- DD_NE_density$no_DD_NE_prop*100
+
 # plot histogram of DD/ NE distribution for all my taxonomic groups- data must be long format
 
 tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Conservation status/DD_ALL_taxonomic_groups.tiff", units = "in", width = 7, height = 5, res = 300)
 
-p <- DD_NE_density %>%
-  ggplot(aes(x=no_DD_NE_prop, fill = Taxonomic_group)) +
-  geom_histogram(color = "black", alpha=0.7, binwidth = 0.1) + 
-  facet_wrap(~Taxonomic_group) + # inlcude each taxonomic group
-  theme_ipsum() +
-  labs(x = "Proportion of DD and NE mammalian families", y = "Number of mammalian families") +
-    theme(axis.text = element_text(face = "bold"),
-      axis.title.y = element_text(size = 12, hjust = 0.5, face = "bold"),
-      axis.title.x = element_text(size = 12, hjust = 0.5, face = "bold"),
-      strip.text.x = element_blank(), # remove taxonomic group listings- use images instead
-      panel.spacing = unit(1, "lines")) + # space between each plot
-      scale_fill_discrete(name = "Taxonomic group")
+ggplot(DD_NE_density, aes(no_DD_NE_prop, fill = Taxonomic_group)) + 
+  geom_histogram(aes(y = stat(density) * 0.1), binwidth = 0.1, color = "black", alpha=0.9) + 
+  scale_y_continuous(labels = percent ) +
+  facet_wrap(~ Taxonomic_group, ncol = 2, nrow = 2) +
+  scale_fill_manual(values = my.pal, labels = c("Amphibians", "Birds", "Mammals", "Reptiles")) +
+  labs(x = "Proportion of family with DD or NE species", y = "% of family") +
+  theme(axis.text = element_text(face = "bold"),
+        strip.background = element_blank(),
+        strip.text.y = element_blank(),
+        axis.title.y = element_text(size = 12, hjust = 0.5, face = "bold"),
+        axis.title.x = element_text(size = 12, hjust = 0.5, face = "bold"),
+        strip.text.x = element_text(size = 0), # remove taxonomic group listings- use images instead
+        panel.spacing = unit(1, "lines")) + # space between each plot
+  scale_fill_brewer(palette = "Accent", name = "Taxonomic group") +
+  #scale_fill_discrete(name = "Taxonomic group") +
+  theme_Publication()
 
 dev.off()
+
+
+
 
 
 ```
