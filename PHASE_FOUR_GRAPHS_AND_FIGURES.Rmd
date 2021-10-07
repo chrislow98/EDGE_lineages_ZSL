@@ -111,6 +111,47 @@ dev.off()
 
 ```
 
+# Fig 1 Bar graph of ePD loss for IUCN families with all threatened species 
+
+```{r IUCN red list family, echo=TRUE}
+
+# subset famileis which entire population are threatened with extinction
+families_threatened <- mammals_pd_merged[which(mammals_pd_merged$assessed_threat_prop == 1),]
+
+# select important columns
+families_threatened <- families_threatened[,c(1:3,7,9,14,39)]
+
+# subset families that have all been assessed
+families_threatened <- families_threatened[which(families_threatened$unassessed_prop == 0),]
+
+# round up whole numbers
+families_threatened$median_EDGE <- round(families_threatened$median_EDGE, digits = 2)
+
+# label number of species and how threatened the lineage is
+families_threatened$Group[families_threatened$richness == 1] <- "Monotypic"
+families_threatened$Group[families_threatened$richness %in% 2:10] <- "< 10 spp"
+families_threatened$Group[families_threatened$richness > 10] <- "> 10 spp"
+
+# Reorder df 
+families_threatened <- transform(families_threatened,
+          Family = reorder(Family,order(median_EDGE, decreasing = FALSE))) 
+
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/ePD loss and EDGE lineage framework/all_families_threatened.tiff", units = "in", width = 6, height = 5, res = 300)
+
+# plot number of families with all species threatened with extinction
+p <- ggplot(data = families_threatened, aes(x = Family, y = median_EDGE, fill = Group)) +
+  geom_bar(position = position_dodge(width = 2), width = 0.7, stat = 'identity') +
+  coord_flip() + # flip axis on it's side
+  scale_fill_manual(values = c("orange", "yellow", "red")) +
+   labs(x = "Family", y = "Median EDGE score") + # change axis titles
+  theme_Publication()
+
+dev.off()
+
+
+
+```
+
 # Creating a bar chart of the top 10% of ePD loss families
 
 ```{r top ePD loss, echo=TRUE}
@@ -201,4 +242,9 @@ webshot("EDGE_priority_lineages.html", "EDGE_priority_lineages.png")
 
 ```
 
+```{r threat heat map, echo=TRUE}
 
+# subset data
+
+
+```
