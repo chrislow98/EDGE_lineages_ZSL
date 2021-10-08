@@ -50,7 +50,7 @@ EDGE_amphibians <- read.csv("C:/Users/Student/Zoological Society of London/EDGEo
 
 EDGE_reptiles <- read.csv("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE2_reptiles.csv", stringsAsFactors = FALSE)
 
-load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/mammal_phylogenies_new_distribution.RData")
+#load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Mammal phylogenies/mammal_phylogenies_new_distribution.RData")
 
 
 options(digits=3)
@@ -101,10 +101,12 @@ EDGE_mammals[c("289"), 4] <- "CR"
 # Pipe to create new summary dataframe for mammals
 
 EDGE_mammal_summary <- EDGE_mammals %>% 
-  dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>%
+  dplyr::select(Family, RL.cat, RL_binary, EDGE.median, ED.median, no.above.median) %>%
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
             median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
+            above.median = median(no.above.median, na.rm = TRUE),
+            median_ED = median(ED.median, na.rm = TRUE), # get median ED scores
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
             no_unassessed = sum(is.na(RL.cat)), # sum all NA species (e.g. unassessed)
@@ -156,10 +158,11 @@ EDGE_birds <- EDGE_birds[order(EDGE_birds$Family),]
 # Pipe to create new summary dataframe for birds
 
 EDGE_bird_summary <- EDGE_birds %>% 
-  dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>% 
+  dplyr::select(Family, RL.cat, RL_binary, EDGE.median, ED.median) %>% 
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
-            median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score       
+            median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
+            median_ED = median(ED.median, na.rm = TRUE), # get median ED scores
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
             
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
@@ -209,10 +212,11 @@ EDGE_amphibians <- EDGE_amphibians[order(EDGE_amphibians$Family),]
 # Pipe to create new summary dataframe for birds
 
 EDGE_amphibian_summary <- EDGE_amphibians %>% 
-  dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>% 
+  dplyr::select(Family, RL.cat, RL_binary, EDGE.median, ED.median) %>% 
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
             median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
+            median_ED = median(ED.median, na.rm = TRUE), # get median ED scores
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
             median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
             
@@ -264,10 +268,11 @@ EDGE_reptiles <- EDGE_reptiles[order(EDGE_reptiles$Family),]
 # Pipe to create new summary dataframe for birds
 
 EDGE_reptile_summary <- EDGE_reptiles %>% 
-  dplyr::select(Family, RL.cat, RL_binary, EDGE.median) %>% 
+  dplyr::select(Family, RL.cat, RL_binary, EDGE.median, ED.median) %>% 
   group_by(Family) %>% #group summary figures by family
   dplyr::summarise(richness = length(Family), # calculate richness for families
             median_EDGE = median(EDGE.median, na.rm = TRUE), # calculate median EDGE score
+            median_ED = median(ED.median, na.rm = TRUE), # get median ED scores
             no_assessed = sum(!is.na(RL.cat)), # sum no. of assessed species removing NA values
 
             no_threated = sum(RL_binary == "1", na.rm = TRUE), # sum species that only include one
@@ -575,6 +580,8 @@ mammals_pd_merged$EDGE_priority[is.na(mammals_pd_merged$EDGE_priority)] <- "No"
 # Set all families which are non-priority to non-prioirty
 mammals_pd_merged$priority_type[is.na(mammals_pd_merged$priority_type)] <- "Non-Priority"
 
+
+
 #save(mammals_pd_merged, EDGE_priority_lineages, ePD_priority_lineages, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/EDGE_LINEAGES_FOR_ANALYSIS.RData")
 
 
@@ -589,6 +596,8 @@ load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low 
 load("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores.EDGE_summary_dataframes_phase_one.RData")
 
 # Write csv for priority EDGE lineages
+write.csv(EDGE_reptile_summary, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/EDGE_families_and_scores/reptile_summary.csv")
+
 write.csv(EDGE_priority_lineages, file = "C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Data and analysis/Monitoring_population_trends/EDGE_mammals_prioirty_list.csv")
 
 ```

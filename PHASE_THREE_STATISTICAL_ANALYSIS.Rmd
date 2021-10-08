@@ -102,6 +102,9 @@ families_threatened <- mammals_pd_merged[which(mammals_pd_merged$assessed_threat
 # select important columns
 families_threatened <- families_threatened[,c(1:3,7,9,14)]
 
+# subset families that have all been assessed
+families_threatened <- families_threatened[which(families_threatened$unassessed_prop == 0),]
+
 # sum ePD loss of these families (384 MY)
 monotypic_spp <- subset(families_threatened, families_threatened$richness ==1)
 
@@ -119,6 +122,8 @@ sum(uplistming_sub$prop_uplisted > 0)
 
 # 5 families have have become fully threatened since 2008 (20%)
 sum(uplistming_sub$prop_uplisted == 1)
+
+sum(families_threatened$Median.exPD)
 
 ```
 
@@ -227,7 +232,11 @@ MuMIn::r.squaredGLMM(ED_glmm_full)
 
 
 # check model performance - assumptions not violated - no they are not xx
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Conservation status/ED_glmm_crit.tiff", units = "in", width = 8, height = 10, res = 300)
+
 performance::check_model(ED_glmm_full)
+
+dev.off()
 
 # update the new model
 ED_glmm_new <- lmer(log(median_ED + 1) ~ log(bodysize_mean + 1) + log(Gen_length_days +1) + prop_1_1 + prop_2_1 + prop_5_1 + prop_5_3 + prop_8_1 + threat_sum_prop + (1| Order),
@@ -358,7 +367,12 @@ tab_model(EDGE_glmm_full)
 StatisticalModels::R2GLMER(EDGE_glmm_full)
 
 # check model performance - assumptions not violated - no they are not xx
-check_model(EDGE_glmm_full)
+# check model performance - assumptions not violated - no they are not xx
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Conservation status/EDGE_glmm_crit.tiff", units = "in", width = 8, height = 10, res = 300)
+
+performance::check_model(EDGE_glmm_full)
+
+dev.off()
 
 # backwards stepwise model selection
 
@@ -388,7 +402,7 @@ anova(EDGE_glmm_full, EDGE_glmm_null)
 
 ### plotting outputs for EDGE scores and extrinsic threats
 ### create tabular format or results
-tab_model(file = "EDGE_glmm_table.html",
+tab_model(file = "EDGE_glmm_table.html", ED_glmm_full,
   EDGE_glmm_full,
   CSS = list(
     css.depvarhead = 'color: black;',
@@ -473,8 +487,10 @@ grid.arrange((p + scale_colour_brewer(palette = "Set1") + theme_Publication()),n
 dev.off()
 
 # get combination of model tables to decide which one to use
-tab_model(file = "EDGE_ED_glmm_table.html",
+tab_model(file = "EDGE_ED_glmm_all_table.doc",
   EDGE_glmm_full, ED_glmm_full,
+  string.est = "Estiamte",
+  digits = 4,
   CSS = list(
     css.depvarhead = 'color: black;',
     css.centeralign = 'text-align: left;', 
@@ -541,6 +557,12 @@ summary(con_status_uplisted_glmm_ED)
 
 # check model
 check_model(con_status_uplisted_glmm_ED)
+
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Conservation status/con_status_uplisted_glmm_ED_crit.tiff", units = "in", width = 8, height = 10, res = 300)
+
+performance::check_model(con_status_uplisted_glmm_ED)
+
+dev.off()
 
 # tabular format of results
 tab_model(con_status_uplisted_glmm_ED, show.est = TRUE, string.est = "Estimate", transform = NULL, digits = 4)
@@ -641,10 +663,14 @@ tab_model(con_status_uplisted_glmm_EDGE, show.est = TRUE, string.est = "Estimate
 
 # get explanatory power of model 
 StatisticalModels::R2GLMER(con_status_uplisted_glmm_EDGE)
-MuMIn::r.squaredGLMM(con_status_uplisted_glmm_EDGE)
+MuMIn::r.squaredGLMM(con_status_uplisted_glmm_ED)
 
 # check for model performance
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Conservation status/con_status_uplisted_glmm_EDGE_crit.tiff", units = "in", width = 8, height = 10, res = 300)
+
 performance::check_model(con_status_uplisted_glmm_EDGE)
+
+dev.off()
 
 # I think there is overdispersion still is overdispersion however is better than preious model
 overdisp_fun(con_status_uplisted_glmm_EDGE)
@@ -658,8 +684,8 @@ con_status_uplisted_glmm_EDGE_null <- glmer(prop_uplisted ~ 1 + (1 | Order), dat
 anova(con_status_uplisted_glmm_EDGE, con_status_uplisted_glmm_EDGE_null)
 
 ### create tabular format or results
-tab_model(file = "con_status_uplisted_glmm_EDGE.html",
-  con_status_uplisted_glmm_EDGE,
+tab_model(file = "con_status_uplisted_glmm_EDGE.doc",
+  con_status_uplisted_glmm_ED, con_status_uplisted_glmm_EDGE,
   show.est = TRUE, 
   string.est = "Estimate", 
   transform = NULL, 
@@ -742,7 +768,12 @@ StatisticalModels::R2GLMER(pop_status_dec_glmm_ED)
 MuMIn::r.squaredGLMM(pop_status_dec_glmm_ED)
 
 # check model performance
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Conservation status/pop_status_dec_glmm_ED_crit.tiff", units = "in", width = 8, height = 10, res = 300)
+
 check_model(pop_status_dec_glmm_ED)
+
+dev.off()
+
 
 # create null model
 pop_status_dec_glmm_ED_null <- glmer(Prop_dec ~ 1 + (1 | Order), data = pop_status_df, family = binomial(link = "logit"), control = glmerControl(optimizer = "bobyqa"))
@@ -847,13 +878,17 @@ tab_model(pop_status_dec_glmm_EDGE,
 
 # get explanatory power
 StatisticalModels::R2GLMER(pop_status_dec_glmm_EDGE)
-MuMIn::r.squaredGLMM(pop_status_dec_glmm_EDGE)
+MuMIn::r.squaredGLMM(pop_status_dec_glmm_ED)
 
 # check model performance
-check_model(pop_status_dec_glmm_ED)
+tiff("C:/Users/Student/Zoological Society of London/EDGEofExistence - Chris Low - EDGE lineages/Project II/Results/Conservation status/pop_status_dec_glmm_EDGE_crit.tiff", units = "in", width = 8, height = 10, res = 300)
+
+performance::check_overdispersion(pop_status_dec_glmm_EDGE)
+
+dev.off()
 
 ### create tabular format or results
-tab_model(file = "pop_status_dec_glmm_ALL.html",
+tab_model(file = "pop_status_dec_glmm_ALL.doc",
   pop_status_dec_glmm_ED, pop_status_dec_glmm_EDGE,
   show.est = TRUE,
   string.est = "Estiamte",
@@ -886,8 +921,7 @@ names(EDGE_pop_dec_df)[1] <- "proportion"
 # number of EDGE lineages - 5
 sum(EDGE_priority_lineages$no_DD_NE_prop > 0.5)
 
-# percentage of mammals that are over 50% DD_NE threshold
-(5/80)*100
+EDGE_priority_lineages <- EDGE_priority_lineages[c(EDGE_priority_lineages$no.over.median > 94),]
 
 # Get lengths of each priority lineage list 
 sum(lengths(regmatches(EDGE_priority_lineages$priority_type, gregexpr("Watchlist lineage", EDGE_priority_lineages$priority_type))))
